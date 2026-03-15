@@ -27,6 +27,7 @@ export default async function handler(req, res) {
       'amount',
       'assigned_amount',
       'dispo_amount',
+      'hubspot_owner_id',
     ].join(',');
 
     let allDeals = [];
@@ -61,6 +62,7 @@ export default async function handler(req, res) {
           fee: parseFloat(d.properties.amount) || 0,
           buyerPrice: parseFloat(d.properties.assigned_amount) || 0,
           listPrice: parseFloat(d.properties.dispo_amount) || 0,
+          ownerId: d.properties.hubspot_owner_id || null,
           contactIds: (d.associations && d.associations.contacts && d.associations.contacts.results
             ? d.associations.contacts.results : []).map(function(c) { return c.id; }),
         };
@@ -152,10 +154,23 @@ export default async function handler(req, res) {
     const funnel2025 = computeFunnel(closedWonByYear(2025), dealsByCreateYear(2025));
     const funnel2026 = computeFunnel(closedWonByYear(2026), dealsByCreateYear(2026));
 
+    // Active team members (owner ID → name)
+    const ACTIVE_OWNERS = {
+      '79989208':  'Omar Wafik',
+      '80801798':  'Omnia Salem',
+      '86146575':  'Jana Alqadi',
+      '87843098':  'Yasmin Hany',
+      '349687975': 'Andrea Bernatowicz',
+      '507449521': 'Peter Russell',
+      '944794198': 'Brittany McCracken',
+      '2137513240':'Devon Sprague',
+    };
+
     return res.status(200).json({
       deals: deals,
       total: deals.length,
       fetchedAt: new Date().toISOString(),
+      owners: ACTIVE_OWNERS,
       funnel: {
         all:  { grossLeads: grossAll,  ...funnelAll  },
         2024: { grossLeads: gross2024, ...funnel2024 },
