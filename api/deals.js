@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     let allDeals = [];
     let after = null;
     do {
-      const url = 'https://api.hubapi.com/crm/v3/objects/deals?limit=100&archived=false&properties=' + props + '&associations=contacts' + (after ? '&after=' + after : '');
+      const url = 'https://api.hubapi.com/crm/v3/objects/deals?limit=100&properties=' + props + '&associations=contacts' + (after ? '&after=' + after : '');
       const r = await fetch(url, { headers: h });
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
