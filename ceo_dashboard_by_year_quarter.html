@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CEO Dashboard — By Year & Quarter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f4f0;
+    --bg3: #efefeb;
+    --text: #1a1a18;
+    --text2: #73726c;
+    --text3: #a0a098;
+    --border: rgba(0,0,0,0.1);
+    --border2: rgba(0,0,0,0.18);
+    --success: #0f6e56;
+    --success-bg: #e1f5ee;
+    --info: #185fa5;
+    --info-bg: #e6f1fb;
+    --danger: #a32d2d;
+    --danger-bg: #fcebeb;
+    --warning: #854f0b;
+    --warning-bg: #faeeda;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c;
+      --bg2: #2a2a27;
+      --bg3: #333330;
+      --text: #e8e6de;
+      --text2: #a0a098;
+      --text3: #73726c;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.18);
+      --success: #5DCAA5;
+      --success-bg: #04342c;
+      --info: #85B7EB;
+      --info-bg: #042C53;
+      --danger: #F09595;
+      --danger-bg: #501313;
+      --warning: #EF9F27;
+      --warning-bg: #412402;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+  .page { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .header { margin-bottom: 1.75rem; }
+  .header h1 { font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .header p { font-size: 13px; color: var(--text2); }
+  .tabs { display: flex; gap: 6px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .tab { padding: 6px 14px; border-radius: var(--radius); font-size: 12px; font-weight: 500; border: 0.5px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+  .tab:hover { background: var(--bg2); }
+  .tab.active { background: var(--text); color: var(--bg); border-color: transparent; }
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text2); margin: 1.5rem 0 0.75rem; padding-bottom: 6px; border-bottom: 0.5px solid var(--border); }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .kpi { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; }
+  .kpi-label { font-size: 11px; color: var(--text2); margin-bottom: 5px; font-weight: 500; }
+  .kpi-value { font-size: 22px; font-weight: 600; color: var(--text); line-height: 1; }
+  .kpi-sub { font-size: 10px; color: var(--text3); margin-top: 3px; }
+  .kpi.g .kpi-value { color: var(--success); }
+  .kpi.b .kpi-value { color: var(--info); }
+  .kpi.a .kpi-value { color: var(--warning); }
+  .kpi.r .kpi-value { color: var(--danger); }
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 1rem; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+  .card-title { font-size: 11px; font-weight: 500; color: var(--text2); margin-bottom: 10px; }
+  .chart-wrap { position: relative; width: 100%; }
+  .qtable { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .qtable th { font-size: 10px; font-weight: 600; color: var(--text2); text-align: left; padding: 6px 10px; border-bottom: 0.5px solid var(--border); white-space: nowrap; background: var(--bg2); }
+  .qtable td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); color: var(--text); white-space: nowrap; }
+  .qtable tr:last-child td { border-bottom: none; }
+  .qtable tr.hl td { background: var(--bg2); font-weight: 500; }
+  .up { color: var(--success); font-size: 11px; }
+  .dn { color: var(--danger); font-size: 11px; }
+  .fl { color: var(--text3); font-size: 11px; }
+  @media (max-width: 560px) { .chart-row { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <h1>CEO Dashboard — Year &amp; Quarter Breakdown</h1>
+    <p>Real estate wholesale · HubSpot data · Feb 2024 – Mar 13, 2026</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="show('all')">All Time</button>
+    <button class="tab" onclick="show('2024')">2024</button>
+    <button class="tab" onclick="show('2025')">2025</button>
+    <button class="tab" onclick="show('2026')">2026 YTD</button>
+  </div>
+
+  <!-- ALL TIME -->
+  <div id="pane-all">
+    <div class="section-label">All Time — Feb 2024 through Mar 13, 2026</div>
+    <div class="kpi-grid">
+      <div class="kpi g"><div class="kpi-label">Total Revenue</div><div class="kpi-value">$782K</div><div class="kpi-sub">35 deals closed</div></div>
+      <div class="kpi b"><div class="kpi-label">Avg Fee / Deal</div><div class="kpi-value">$22,348</div><div class="kpi-sub">all 35 closings</div></div>
+      <div class="kpi"><div class="kpi-label">Deals Won</div><div class="kpi-value">35</div><div class="kpi-sub">closed won</div></div>
+      <div class="kpi r"><div class="kpi-label">Deals Lost</div><div class="kpi-value">13</div><div class="kpi-sub">closed lost</div></div>
+      <div class="kpi a"><div class="kpi-label">Close Rate</div><div class="kpi-value">72.9%</div><div class="kpi-sub">35 of 48 closings</div></div>
+    </div>
+    <div class="section-label">Annual Comparison</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="qtable">
+        <thead><tr><th>Year</th><th>Deals Won</th><th>Deals Lost</th><th>Close Rate</th><th>Revenue</th><th>Avg Fee</th><th>vs Prior Year</th></tr></thead>
+        <tbody>
+          <tr><td>2024</td><td>13</td><td>6</td><td>68.4%</td><td>$246,444</td><td>$18,957</td><td class="fl">—</td></tr>
+          <tr><td>2025</td><td>19</td><td>6</td><td>76.0%</td><td>$455,984</td><td>$23,999</td><td class="up">+85.0% rev ↑</td></tr>
+          <tr><td>2026 YTD</td><td>3</td><td>1</td><td>75.0%</td><td>$77,528</td><td>$25,843</td><td class="up">+26% avg fee ↑</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="section-label">Revenue by Quarter (all years)</div>
+    <div class="chart-wrap" style="height:220px"><canvas id="allQuarterChart"></canvas></div>
+    <div class="section-label">Deals Won vs Lost by Quarter</div>
+    <div class="chart-wrap" style="height:180px"><canvas id="allDealsChart"></canvas></div>
+  </div>
+
+  <!-- 2024 -->
+  <div id="pane-2024" style="display:none">
+    <div class="section-label">2024 Full Year</div>
+    <div class="kpi-grid">
+      <div class="kpi g"><div class="kpi-label">Total Revenue</div><div class="kpi-value">$246K</div><div class="kpi-sub">13 deals closed</div></div>
+      <div class="kpi b"><div class="kpi-label">Avg Fee / Deal</div><div class="kpi-value">$18,957</div><div class="kpi-sub">lowest avg of 3 yrs</div></div>
+      <div class="kpi"><div class="kpi-label">Deals Won</div><div class="kpi-value">13</div><div class="kpi-sub">closed won</div></div>
+      <div class="kpi r"><div class="kpi-label">Deals Lost</div><div class="kpi-value">6</div><div class="kpi-sub">closed lost</div></div>
+      <div class="kpi a"><div class="kpi-label">Close Rate</div><div class="kpi-value">68.4%</div><div class="kpi-sub">13 of 19</div></div>
+    </div>
+    <div class="section-label">2024 by Quarter</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="qtable">
+        <thead><tr><th>Quarter</th><th>Won</th><th>Lost</th><th>Close Rate</th><th>Revenue</th><th>Avg Fee</th><th>Best Deal</th></tr></thead>
+        <tbody>
+          <tr><td>Q1 (Jan–Mar)</td><td>1</td><td>0</td><td>100%</td><td>$11,000</td><td>$11,000</td><td>1509 Breezewood Dr</td></tr>
+          <tr><td>Q2 (Apr–Jun)</td><td>1</td><td>0</td><td>100%</td><td>$10,000</td><td>$10,000</td><td>4718 Rolling Hills</td></tr>
+          <tr><td>Q3 (Jul–Sep)</td><td>7</td><td>4</td><td>63.6%</td><td>$183,750</td><td>$26,250</td><td>2212 Jackson St ($60K)</td></tr>
+          <tr class="hl"><td>Q4 (Oct–Dec)</td><td>4</td><td>2</td><td>66.7%</td><td>$64,604</td><td>$16,151</td><td>4721 Chapel Grove ($20K)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="chart-row">
+      <div class="card"><div class="card-title">2024 revenue by quarter</div><div class="chart-wrap" style="height:160px"><canvas id="rev2024"></canvas></div></div>
+      <div class="card"><div class="card-title">2024 deals: won vs lost</div><div class="chart-wrap" style="height:160px"><canvas id="wl2024"></canvas></div></div>
+    </div>
+    <div class="section-label">2024 All Closed-Won Deals</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="qtable">
+        <thead><tr><th>Property</th><th>Q</th><th>Fee</th><th>Contract</th><th>Dispo</th></tr></thead>
+        <tbody>
+          <tr><td>1509 Breezewood Drive</td><td>Q1</td><td>$11,000</td><td>—</td><td>—</td></tr>
+          <tr><td>4718 Rolling Hills Drive</td><td>Q2</td><td>$10,000</td><td>—</td><td>—</td></tr>
+          <tr><td>244 N Race St, Statesville</td><td>Q3</td><td>$22,500</td><td>$170K</td><td>—</td></tr>
+          <tr><td>906 Church St, Kings Mt</td><td>Q3</td><td>$15,000</td><td>$85K</td><td>—</td></tr>
+          <tr><td>2212 Jackson Street</td><td>Q3</td><td>$60,000</td><td>$56K</td><td>$160K</td></tr>
+          <tr><td>203 N Wylie Street</td><td>Q3</td><td>$14,750</td><td>—</td><td>—</td></tr>
+          <tr><td>915 Henry St</td><td>Q3</td><td>$13,500</td><td>$7.5K</td><td>$25K</td></tr>
+          <tr><td>353 Kirby Drive</td><td>Q3</td><td>$40,000</td><td>$135K</td><td>$189.5K</td></tr>
+          <tr><td>1613 W 5th Ave, Gastonia</td><td>Q3</td><td>$18,000</td><td>$80K</td><td>$105K</td></tr>
+          <tr><td>208 N Columbia Ave, Rock Hill</td><td>Q4</td><td>$15,693</td><td>$104K</td><td>$150K</td></tr>
+          <tr><td>4721 Chapel Grove Rd, Gastonia</td><td>Q4</td><td>$20,000</td><td>$165K</td><td>$192.5K</td></tr>
+          <tr><td>9000 Windsong Drive, Charlotte</td><td>Q4</td><td>$10,000</td><td>$190K</td><td>$205K</td></tr>
+          <tr><td>1200 Spencer Ave, Gastonia</td><td>Q4</td><td>$18,911</td><td>$148K</td><td>$175K</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 2025 -->
+  <div id="pane-2025" style="display:none">
+    <div class="section-label">2025 Full Year</div>
+    <div class="kpi-grid">
+      <div class="kpi g"><div class="kpi-label">Total Revenue</div><div class="kpi-value">$456K</div><div class="kpi-sub">+85% vs 2024</div></div>
+      <div class="kpi b"><div class="kpi-label">Avg Fee / Deal</div><div class="kpi-value">$23,999</div><div class="kpi-sub">+26.6% vs 2024</div></div>
+      <div class="kpi"><div class="kpi-label">Deals Won</div><div class="kpi-value">19</div><div class="kpi-sub">+6 vs 2024</div></div>
+      <div class="kpi r"><div class="kpi-label">Deals Lost</div><div class="kpi-value">6</div><div class="kpi-sub">same as 2024</div></div>
+      <div class="kpi a"><div class="kpi-label">Close Rate</div><div class="kpi-value">76.0%</div><div class="kpi-sub">19 of 25</div></div>
+    </div>
+    <div class="section-label">2025 by Quarter</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="qtable">
+        <thead><tr><th>Quarter</th><th>Won</th><th>Lost</th><th>Close Rate</th><th>Revenue</th><th>Avg Fee</th><th>Best Deal</th></tr></thead>
+        <tbody>
+          <tr class="hl"><td>Q1 (Jan–Mar)</td><td>9</td><td>0</td><td>100%</td><td>$207,221</td><td>$23,025</td><td>2424 Faber St ($39K)</td></tr>
+          <tr><td>Q2 (Apr–Jun)</td><td>5</td><td>1</td><td>83.3%</td><td>$131,483</td><td>$26,297</td><td>8709 Idlewild ($45.2K)</td></tr>
+          <tr><td>Q3 (Jul–Sep)</td><td>2</td><td>1</td><td>66.7%</td><td>$98,806</td><td>$49,403</td><td>1522 Fuller Dr ($65.6K)</td></tr>
+          <tr><td>Q4 (Oct–Dec)</td><td>3</td><td>4</td><td>42.9%</td><td>$100,514</td><td>$33,505</td><td>1010 N Weldon ($63.3K)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="chart-row">
+      <div class="card"><div class="card-title">2025 revenue by quarter</div><div class="chart-wrap" style="height:160px"><canvas id="rev2025"></canvas></div></div>
+      <div class="card"><div class="card-title">2025 close rate by quarter</div><div class="chart-wrap" style="height:160px"><canvas id="cr2025"></canvas></div></div>
+    </div>
+    <div class="section-label">2025 All Closed-Won Deals</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="qtable">
+        <thead><tr><th>Property</th><th>Q</th><th>Fee</th><th>Contract</th><th>Dispo</th></tr></thead>
+        <tbody>
+          <tr><td>1616 E 35th St, Charlotte</td><td>Q1</td><td>$25,000</td><td>$270K</td><td>$310K</td></tr>
+          <tr><td>1549 South Point Rd, Belmont</td><td>Q1</td><td>$30,000</td><td>$155K</td><td>$200K</td></tr>
+          <tr><td>631 Turnersburg Hwy, Statesville</td><td>Q1</td><td>$18,263</td><td>$145K</td><td>$179.9K</td></tr>
+          <tr><td>306 Scruggs St, Gastonia</td><td>Q1</td><td>$11,567</td><td>$105K</td><td>$120K</td></tr>
+          <tr><td>8220 Chrisbry Ln, Charlotte</td><td>Q1</td><td>$5,000</td><td>$220K</td><td>$230K</td></tr>
+          <tr><td>4337 Hathaway St, Charlotte</td><td>Q1</td><td>$28,000</td><td>$202K</td><td>$227.5K</td></tr>
+          <tr><td>4724 Jamee Drive, Gastonia</td><td>Q1</td><td>$22,949</td><td>$180K</td><td>$210K</td></tr>
+          <tr><td>4227 Coopersdale Rd, Charlotte</td><td>Q1</td><td>$28,442</td><td>$230K</td><td>$282.5K</td></tr>
+          <tr><td>2424 Faber Street, Charlotte</td><td>Q1</td><td>$39,000</td><td>$160K</td><td>$199.9K</td></tr>
+          <tr><td>5534 Great Wagon Rd, Charlotte</td><td>Q2</td><td>$18,558</td><td>$180K</td><td>$202K</td></tr>
+          <tr><td>6104 Bent Tree Ct, Charlotte</td><td>Q2</td><td>$26,500</td><td>$100K</td><td>$144.5K</td></tr>
+          <tr><td>8709 Idlewild Rd, Charlotte</td><td>Q2</td><td>$45,222</td><td>$190K</td><td>$229.5K</td></tr>
+          <tr><td>219 W Edison Dr, Statesville</td><td>Q2</td><td>-$2,700</td><td>$180K</td><td>$219.9K</td></tr>
+          <tr><td>2814 LD Parker Dr, Charlotte</td><td>Q2</td><td>$43,904</td><td>$152.4K</td><td>$235K</td></tr>
+          <tr><td>1701 Anderson St, Charlotte</td><td>Q3</td><td>$33,194</td><td>$216.5K</td><td>$275K</td></tr>
+          <tr><td>1522 Fuller Drive, Gastonia</td><td>Q3</td><td>$65,612</td><td>$180K</td><td>$250.5K</td></tr>
+          <tr><td>1010 N Weldon St, Gastonia</td><td>Q4</td><td>$63,294</td><td>$20K</td><td>$130K</td></tr>
+          <tr><td>1800 5th St, Statesville</td><td>Q4</td><td>$26,394</td><td>$10K</td><td>$40K</td></tr>
+          <tr><td>7607 Holly Grove Ct, Charlotte</td><td>Q4</td><td>$10,826</td><td>$130K</td><td>$169.9K</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 2026 YTD -->
+  <div id="pane-2026" style="display:none">
+    <div class="section-label">2026 YTD (Q1 Jan–Mar 13)</div>
+    <div class="kpi-grid">
+      <div class="kpi g"><div class="kpi-label">Total Revenue</div><div class="kpi-value">$77,528</div><div class="kpi-sub">3 deals closed</div></div>
+      <div class="kpi b"><div class="kpi-label">Avg Fee / Deal</div><div class="kpi-value">$25,843</div><div class="kpi-sub">highest avg to date</div></div>
+      <div class="kpi"><div class="kpi-label">Deals Won</div><div class="kpi-value">3</div><div class="kpi-sub">Q1 so far</div></div>
+      <div class="kpi r"><div class="kpi-label">Deals Lost</div><div class="kpi-value">1</div><div class="kpi-sub">1417 Santee St</div></div>
+      <div class="kpi a"><div class="kpi-label">Close Rate</div><div class="kpi-value">75.0%</div><div class="kpi-sub">3 of 4</div></div>
+      <div class="kpi"><div class="kpi-label">Active Pipeline</div><div class="kpi-value">5</div><div class="kpi-sub">deals in progress</div></div>
+    </div>
+    <div class="section-label">Q1 2026 Closed-Won Deals</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="qtable">
+        <thead><tr><th>Property</th><th>Fee</th><th>Contract</th><th>Dispo</th><th>Close Date</th></tr></thead>
+        <tbody>
+          <tr><td>5396 Stonewood Drive, Hickory</td><td>$10,528</td><td>$110K</td><td>$167.5K</td><td>Jan 7</td></tr>
+          <tr><td>4935 Kistler Ave, Charlotte</td><td>$50,000</td><td>$185K</td><td>$235K</td><td>Jan 21</td></tr>
+          <tr><td>1308 Harland St, Charlotte</td><td>$17,000</td><td>$218K</td><td>$240K</td><td>Mar 10</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="section-label">Active Pipeline — deals in progress today</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="qtable">
+        <thead><tr><th>Property</th><th>Stage</th><th>Expected Fee</th><th>Contract</th><th>Dispo</th><th>Target Close</th></tr></thead>
+        <tbody>
+          <tr><td>8518 Douglas Dr, Charlotte</td><td>Marketing</td><td>$30,000</td><td>$465K</td><td>$530K</td><td>May 27</td></tr>
+          <tr><td>2112 Milton Rd, Charlotte</td><td>Set to Close</td><td>$19,000</td><td>$190K</td><td>$220K</td><td>Mar 30</td></tr>
+          <tr><td>3108 Cedar St, Gastonia</td><td>Assigned</td><td>$22,000</td><td>$25K</td><td>$52.5K</td><td>Mar 2</td></tr>
+          <tr><td>809 Forestbrook Dr, Gastonia</td><td>Assigned</td><td>$22,500</td><td>$250K</td><td>$290K</td><td>Apr 1</td></tr>
+          <tr><td>315 Baldwin Ave, Charlotte</td><td>Delayed</td><td>$115,000</td><td>$300K</td><td>$399K</td><td>TBD</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="section-label">Q1 2026 Pace vs Prior Q1s</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="q1compare"></canvas></div>
+  </div>
+</div>
+
+<script>
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+const grid = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+const tc = dark ? '#a0a098' : '#73726c';
+
+function show(id) {
+  ['all','2024','2025','2026'].forEach(p => {
+    document.getElementById('pane-'+p).style.display = p===id ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', ['all','2024','2025','2026'][i]===id);
+  });
+}
+
+const xOpts = (money) => ({
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => money ? '$'+ctx.parsed.y.toLocaleString() : ctx.parsed.y } } },
+  scales: {
+    x: { grid: { color: grid }, ticks: { color: tc, font: { size: 11 } } },
+    y: { grid: { color: grid }, ticks: { color: tc, font: { size: 11 }, callback: v => money ? '$'+Math.round(v/1000)+'k' : v } }
+  }
+});
+
+new Chart(document.getElementById('allQuarterChart'), {
+  type: 'bar',
+  data: {
+    labels: ['2024 Q1','2024 Q2','2024 Q3','2024 Q4','2025 Q1','2025 Q2','2025 Q3','2025 Q4','2026 Q1'],
+    datasets: [{ data: [11000,10000,183750,64604,207221,131483,98806,100514,77528], backgroundColor: ['#B5D4F4','#B5D4F4','#B5D4F4','#B5D4F4','#5DCAA5','#5DCAA5','#5DCAA5','#5DCAA5','#3B8BD4'], borderRadius: 4, borderSkipped: false }]
+  },
+  options: xOpts(true)
+});
+
+new Chart(document.getElementById('allDealsChart'), {
+  type: 'bar',
+  data: {
+    labels: ['2024 Q1','2024 Q2','2024 Q3','2024 Q4','2025 Q1','2025 Q2','2025 Q3','2025 Q4','2026 Q1'],
+    datasets: [
+      { label: 'Won', data: [1,1,7,4,9,5,2,3,3], backgroundColor: '#1D9E75', borderRadius: 4, borderSkipped: false },
+      { label: 'Lost', data: [0,0,4,2,0,1,1,4,1], backgroundColor: '#E24B4A', borderRadius: 4, borderSkipped: false }
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, labels: { color: tc, font: { size: 11 }, boxWidth: 10, padding: 8 } } }, scales: { x: { grid: { color: grid }, ticks: { color: tc, font: { size: 11 } } }, y: { grid: { color: grid }, ticks: { color: tc, font: { size: 11 } } } } }
+});
+
+new Chart(document.getElementById('rev2024'), {
+  type: 'bar',
+  data: { labels: ['Q1','Q2','Q3','Q4'], datasets: [{ data: [11000,10000,183750,64604], backgroundColor: ['#B5D4F4','#85B7EB','#378ADD','#185FA5'], borderRadius: 4, borderSkipped: false }] },
+  options: xOpts(true)
+});
+
+new Chart(document.getElementById('wl2024'), {
+  type: 'bar',
+  data: { labels: ['Q1','Q2','Q3','Q4'], datasets: [{ label: 'Won', data: [1,1,7,4], backgroundColor: '#1D9E75', borderRadius: 4, borderSkipped: false }, { label: 'Lost', data: [0,0,4,2], backgroundColor: '#E24B4A', borderRadius: 4, borderSkipped: false }] },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, labels: { color: tc, font: { size: 11 }, boxWidth: 10, padding: 6 } } }, scales: { x: { grid: { color: grid }, ticks: { color: tc, font: { size: 11 } } }, y: { grid: { color: grid }, ticks: { color: tc, font: { size: 11 } } } } }
+});
+
+new Chart(document.getElementById('rev2025'), {
+  type: 'bar',
+  data: { labels: ['Q1','Q2','Q3','Q4'], datasets: [{ data: [207221,131483,98806,100514], backgroundColor: ['#9FE1CB','#5DCAA5','#1D9E75','#0F6E56'], borderRadius: 4, borderSkipped: false }] },
+  options: xOpts(true)
+});
+
+new Chart(document.getElementById('cr2025'), {
+  type: 'line',
+  data: { labels: ['Q1','Q2','Q3','Q4'], datasets: [{ data: [100,83.3,66.7,42.9], borderColor: '#3B8BD4', backgroundColor: dark?'rgba(59,139,212,0.1)':'rgba(59,139,212,0.07)', fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#3B8BD4' }] },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: grid }, ticks: { color: tc, font: { size: 11 } } }, y: { min: 0, max: 110, grid: { color: grid }, ticks: { color: tc, font: { size: 11 }, callback: v => v+'%' } } } }
+});
+
+new Chart(document.getElementById('q1compare'), {
+  type: 'bar',
+  data: { labels: ['Q1 2024','Q1 2025','Q1 2026 (partial)'], datasets: [{ data: [11000,207221,77528], backgroundColor: ['#B5D4F4','#5DCAA5','#3B8BD4'], borderRadius: 4, borderSkipped: false }] },
+  options: xOpts(true)
+});
+</script>
+</body>
+</html>

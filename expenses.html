@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spend & ROI — Premier Path Properties</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f4f0; --bg3: #efefeb;
+    --text: #1a1a18; --text2: #73726c; --text3: #a0a098;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+    --success: #0f6e56; --success-bg: #e1f5ee;
+    --info: #185fa5; --info-bg: #e6f1fb;
+    --danger: #a32d2d; --danger-bg: #fcebeb;
+    --warning: #854f0b; --warning-bg: #faeeda;
+    --radius: 8px; --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c; --bg2: #2a2a27; --bg3: #333330;
+      --text: #e8e6de; --text2: #a0a098; --text3: #73726c;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.18);
+      --success: #5DCAA5; --success-bg: #04342c;
+      --info: #85B7EB; --info-bg: #042C53;
+      --danger: #F09595; --danger-bg: #501313;
+      --warning: #EF9F27; --warning-bg: #412402;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+  .page { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+  /* ── Page nav (matches index.html tab style) ── */
+  .page-nav { display: flex; gap: 4px; margin-bottom: 1.75rem; border-bottom: 0.5px solid var(--border); padding-bottom: 1rem; }
+  .page-nav a { padding: 5px 12px; border-radius: var(--radius); font-size: 12px; font-weight: 500; color: var(--text2); text-decoration: none; transition: all 0.15s; border: 0.5px solid transparent; }
+  .page-nav a:hover { background: var(--bg2); color: var(--text); }
+  .page-nav a.active { background: var(--text); color: var(--bg); }
+
+  /* ── Header ── */
+  .header { margin-bottom: 1.75rem; }
+  .header h1 { font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .header p { font-size: 13px; color: var(--text2); }
+
+  /* ── Month tabs ── */
+  .tabs { display: flex; gap: 6px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .tab { padding: 6px 14px; border-radius: var(--radius); font-size: 12px; font-weight: 500; border: 0.5px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+  .tab:hover { background: var(--bg2); }
+  .tab.active { background: var(--text); color: var(--bg); border-color: transparent; }
+
+  /* ── Section label ── */
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text2); margin: 1.5rem 0 0.75rem; padding-bottom: 6px; border-bottom: 0.5px solid var(--border); }
+
+  /* ── KPI grid ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .kpi { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; }
+  .kpi-label { font-size: 11px; color: var(--text2); margin-bottom: 5px; font-weight: 500; }
+  .kpi-value { font-size: 22px; font-weight: 600; color: var(--text); line-height: 1; }
+  .kpi-sub { font-size: 10px; color: var(--text3); margin-top: 3px; }
+  .kpi.g .kpi-value { color: var(--success); }
+  .kpi.b .kpi-value { color: var(--info); }
+  .kpi.a .kpi-value { color: var(--warning); }
+  .kpi.r .kpi-value { color: var(--danger); }
+
+  /* ── Input banner ── */
+  .input-banner { background: var(--warning-bg); border: 0.5px solid rgba(133,79,11,0.3); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 1.25rem; }
+  .input-banner-title { font-size: 11px; font-weight: 600; color: var(--warning); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+  .input-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .input-group label { font-size: 10px; font-weight: 600; color: var(--warning); display: block; margin-bottom: 5px; }
+  .input-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .input-pair-labels { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 3px; }
+  .input-pair-labels span { font-size: 10px; color: var(--text3); text-align: center; }
+  input[type="number"] { width: 100%; font-size: 13px; font-weight: 500; font-family: inherit; background: var(--bg); border: 0.5px solid var(--border2); border-radius: 5px; padding: 5px 8px; color: var(--text); outline: none; -moz-appearance: textfield; }
+  input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  input[type="number"]:focus { border-color: var(--warning); }
+  input[type="number"]::placeholder { color: var(--text3); font-weight: 400; }
+
+  /* ── Cards / Charts ── */
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 1rem; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+  .card-title { font-size: 11px; font-weight: 500; color: var(--text2); margin-bottom: 10px; }
+
+  /* ── Tables ── */
+  .qtable { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .qtable th { font-size: 10px; font-weight: 600; color: var(--text2); text-align: left; padding: 6px 10px; border-bottom: 0.5px solid var(--border); white-space: nowrap; background: var(--bg2); }
+  .qtable th.r { text-align: right; }
+  .qtable td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); color: var(--text); }
+  .qtable td.r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .qtable tr:last-child td { border-bottom: none; }
+  .qtable tr.total td { font-weight: 600; background: var(--bg2); border-top: 0.5px solid var(--border2); }
+  .badge { display: inline-block; font-size: 10px; font-weight: 500; padding: 1px 6px; border-radius: 4px; }
+  .badge.marketing { background: var(--info-bg); color: var(--info); }
+  .badge.tools     { background: var(--bg3); color: var(--text2); }
+  .badge.data      { background: var(--success-bg); color: var(--success); }
+  .badge.payroll   { background: var(--warning-bg); color: var(--warning); }
+  .badge.finances  { background: var(--danger-bg); color: var(--danger); }
+
+  /* ── Delta chips ── */
+  .up   { color: var(--success); font-size: 11px; }
+  .dn   { color: var(--danger);  font-size: 11px; }
+  .flat { color: var(--text3);   font-size: 11px; }
+
+  /* ── Flags ── */
+  .flag-list { display: flex; flex-direction: column; gap: 6px; }
+  .flag { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: var(--radius); font-size: 12px; }
+  .flag.red   { background: var(--danger-bg);  border: 0.5px solid rgba(163,45,45,0.2); }
+  .flag.amber { background: var(--warning-bg); border: 0.5px solid rgba(133,79,11,0.2); }
+  .flag-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .flag-body strong { display: block; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+  .flag-body span { color: var(--text2); }
+
+  @media (max-width: 560px) {
+    .chart-row { grid-template-columns: 1fr; }
+    .kpi-grid  { grid-template-columns: repeat(2, 1fr); }
+    .input-fields { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <nav class="page-nav">
+    <a href="/">CEO Dashboard</a>
+    <a href="/expenses" class="active">Spend &amp; ROI</a>
+  </nav>
+
+  <div class="header">
+    <h1>Spend &amp; ROI — Premier Path Properties</h1>
+    <p>Jan–Feb 2026 · Enter revenue &amp; leads below to unlock full ROI metrics</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showMonth('jan')">January 2026</button>
+    <button class="tab" onclick="showMonth('feb')">February 2026</button>
+    <button class="tab" onclick="showMonth('total')">Jan–Feb Total</button>
+  </div>
+
+  <!-- Revenue & Leads inputs -->
+  <div class="input-banner">
+    <div class="input-banner-title">⚠ Enter Revenue &amp; Leads to Unlock ROAS, CPL &amp; Net Revenue</div>
+    <div class="input-fields">
+      <div class="input-group">
+        <label>Revenue ($)</label>
+        <div class="input-pair">
+          <input type="number" id="rev-jan" placeholder="Jan" oninput="recalc()">
+          <input type="number" id="rev-feb" placeholder="Feb" oninput="recalc()">
+        </div>
+        <div class="input-pair-labels"><span>January</span><span>February</span></div>
+      </div>
+      <div class="input-group">
+        <label>Leads Generated (#)</label>
+        <div class="input-pair">
+          <input type="number" id="leads-jan" placeholder="Jan" oninput="recalc()">
+          <input type="number" id="leads-feb" placeholder="Feb" oninput="recalc()">
+        </div>
+        <div class="input-pair-labels"><span>January</span><span>February</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="dash"></div>
+
+</div>
+<script>
+// ── Theme ────────────────────────────────────────────────────────────────────
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+const gridColor = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+const tickColor = dark ? '#a0a098' : '#73726c';
+
+// ── Chart registry ───────────────────────────────────────────────────────────
+let _charts = [];
+function mkChart(id, type, data, opts) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  _charts.push(new Chart(el, { type, data, options: opts }));
+}
+function destroyCharts() { _charts.forEach(c => c.destroy()); _charts = []; }
+
+// ── Formatters ───────────────────────────────────────────────────────────────
+const $F = v => {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString();
+};
+const deltaChip = (a, b, invert = false) => {
+  if (!a || !b || isNaN(a) || isNaN(b)) return '<span class="flat">—</span>';
+  const p = ((b - a) / Math.abs(a) * 100).toFixed(1);
+  const up = b >= a;
+  const good = invert ? !up : up;
+  return `<span class="${good ? 'up' : 'dn'}">${up ? '▲' : '▼'} ${Math.abs(p)}%</span>`;
+};
+
+// ── PPP Expense data (source: Expenses_Sheet_-_All_Hands.xlsx · PPP tab) ─────
+const DATA = {
+  jan: {
+    marketing: [
+      { vendor: 'DIY RE',             amount: 3500,   note: '4 cold callers / monthly invoice' },
+      { vendor: 'DM Force — Mailers', amount: 11500,  note: '15,000 pieces of mail / monthly' },
+      { vendor: 'Red Panda',          amount: 9000,   note: 'PPL — one-time contract/payment' },
+    ],
+    tools: [
+      { vendor: 'Launch Control', amount: 497 },
+      { vendor: 'HubSpot',        amount: 587.40, note: 'Monthly invoice' },
+      { vendor: 'NordVPN',        amount: 3.59 },
+      { vendor: 'RingCentral',    amount: 505.76 },
+    ],
+    data: [
+      { vendor: 'SGS',        amount: 600 },
+      { vendor: 'LocatePlus', amount: 75 },
+      { vendor: 'PropStream', amount: 99 },
+      { vendor: 'PropWire',   amount: 0 },
+    ],
+    payroll:  [{ vendor: 'Internal Team', amount: 5053, note: 'Varies month to month' }],
+    finances: [{ vendor: 'Time Capital',  amount: 474 }],
+  },
+  feb: {
+    marketing: [
+      { vendor: 'DIY RE',             amount: 3500 },
+      { vendor: 'DM Force — Mailers', amount: 11500 },
+      { vendor: 'Red Panda',          amount: 0, note: 'One-time contract — not recurring' },
+    ],
+    tools: [
+      { vendor: 'Launch Control',   amount: 519 },
+      { vendor: 'HubSpot',          amount: null, note: '⚠ Invoice not yet issued — TBD' },
+      { vendor: 'NordVPN',          amount: 3.59, note: 'Annual subscription — monthly breakdown' },
+      { vendor: 'RingCentral',      amount: 551.68 },
+      { vendor: 'Google Workspace', amount: 196 },
+    ],
+    data: [
+      { vendor: 'SGS',        amount: 426.60 },
+      { vendor: 'LocatePlus', amount: null, note: '⚠ Amount unknown — confirm with vendor' },
+      { vendor: 'PropStream', amount: 99 },
+      { vendor: 'PropWire',   amount: 0 },
+    ],
+    payroll:  [{ vendor: 'Internal Team', amount: 4000 }],
+    finances: [{ vendor: 'Time Capital',  amount: 474 }],
+  }
+};
+
+const CATS = [
+  { key: 'marketing', label: 'Marketing',       badge: 'marketing' },
+  { key: 'tools',     label: 'Tools & Systems', badge: 'tools'     },
+  { key: 'data',      label: 'Data',            badge: 'data'      },
+  { key: 'payroll',   label: 'Payroll',         badge: 'payroll'   },
+  { key: 'finances',  label: 'Finances',        badge: 'finances'  },
+];
+const CAT_COLORS = ['#185fa5','#73726c','#0f6e56','#854f0b','#a32d2d'];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function catTotal(month, cat) {
+  return (DATA[month][cat] || []).reduce((s, v) => s + (v.amount || 0), 0);
+}
+function monthTotal(month) {
+  return CATS.reduce((s, c) => s + catTotal(month, c.key), 0);
+}
+function getVal(id) { return parseFloat(document.getElementById(id).value) || 0; }
+function getRevenue(m) {
+  if (m === 'total') return getVal('rev-jan') + getVal('rev-feb');
+  return getVal(`rev-${m}`);
+}
+function getLeads(m) {
+  if (m === 'total') return getVal('leads-jan') + getVal('leads-feb');
+  return getVal(`leads-${m}`);
+}
+
+// ── KPI cards ────────────────────────────────────────────────────────────────
+function renderKPIs(m) {
+  const months = m === 'total' ? ['jan','feb'] : [m];
+  const spend    = months.reduce((s, x) => s + monthTotal(x), 0);
+  const mktSpend = months.reduce((s, x) => s + catTotal(x, 'marketing'), 0);
+  const payroll  = months.reduce((s, x) => s + catTotal(x, 'payroll'), 0);
+  const rev      = getRevenue(m);
+  const leads    = getLeads(m);
+
+  const roas     = (rev && mktSpend) ? (rev / mktSpend).toFixed(2) + 'x' : '—';
+  const roasCls  = (rev && mktSpend) ? (rev/mktSpend >= 3 ? 'g' : rev/mktSpend >= 1.5 ? '' : rev/mktSpend >= 1 ? 'a' : 'r') : '';
+  const cpl      = (leads && mktSpend) ? $F(mktSpend / leads) : '—';
+  const netRev   = (rev && spend) ? $F(rev - spend) : '—';
+  const netCls   = (rev && spend) ? (rev - spend >= 0 ? 'g' : 'r') : '';
+  const mktPct   = spend ? (mktSpend / spend * 100).toFixed(1) + '%' : '—';
+  const payPct   = spend ? (payroll / spend * 100).toFixed(1) + '%' : '—';
+
+  return `<div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(155px,1fr))">
+    <div class="kpi">
+      <div class="kpi-label">Total Spend</div>
+      <div class="kpi-value">${$F(spend)}</div>
+      <div class="kpi-sub">${m === 'total' ? 'Jan + Feb combined' : m === 'jan' ? 'January 2026' : 'February 2026'}</div>
+    </div>
+    <div class="kpi b">
+      <div class="kpi-label">Marketing Spend</div>
+      <div class="kpi-value">${$F(mktSpend)}</div>
+      <div class="kpi-sub">${mktPct} of total spend</div>
+    </div>
+    <div class="kpi ${roasCls}">
+      <div class="kpi-label">ROAS</div>
+      <div class="kpi-value">${roas}</div>
+      <div class="kpi-sub">Revenue ÷ Marketing Spend</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Cost per Lead</div>
+      <div class="kpi-value">${cpl}</div>
+      <div class="kpi-sub">Marketing Spend ÷ Leads</div>
+    </div>
+    <div class="kpi a">
+      <div class="kpi-label">Payroll % of Spend</div>
+      <div class="kpi-value">${payPct}</div>
+      <div class="kpi-sub">Headcount cost ratio</div>
+    </div>
+    <div class="kpi ${netCls}">
+      <div class="kpi-label">Net Revenue</div>
+      <div class="kpi-value">${netRev}</div>
+      <div class="kpi-sub">Revenue − Total Spend</div>
+    </div>
+  </div>`;
+}
+
+// ── Category summary table ────────────────────────────────────────────────────
+function renderCategoryTable(m) {
+  const months = m === 'total' ? ['jan','feb'] : [m];
+  const spend  = months.reduce((s, x) => s + monthTotal(x), 0);
+  const momCol = m === 'total';
+  const rows = CATS.map(cat => {
+    const amt = months.reduce((s, x) => s + catTotal(x, cat.key), 0);
+    return `<tr>
+      <td><span class="badge ${cat.badge}">${cat.label}</span></td>
+      <td class="r">${$F(amt)}</td>
+      <td class="r">${spend ? (amt/spend*100).toFixed(1)+'%' : '—'}</td>
+      ${momCol ? `<td class="r">${deltaChip(catTotal('jan',cat.key), catTotal('feb',cat.key), true)}</td>` : ''}
+    </tr>`;
+  }).join('');
+  return `<div class="card">
+    <div class="card-title">Spend by Category</div>
+    <table class="qtable">
+      <thead><tr>
+        <th>Category</th><th class="r">Amount</th><th class="r">% of Total</th>
+        ${momCol ? '<th class="r">MoM Δ</th>' : ''}
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr class="total">
+        <td>Total</td><td class="r">${$F(spend)}</td><td class="r">100%</td>
+        ${momCol ? `<td class="r">${deltaChip(monthTotal('jan'), monthTotal('feb'), true)}</td>` : ''}
+      </tr></tfoot>
+    </table>
+  </div>`;
+}
+
+// ── Vendor line-item table ────────────────────────────────────────────────────
+function renderVendorTable(m) {
+  const months = m === 'total' ? ['jan','feb'] : [m];
+  const momCol = m === 'total';
+  let rows = '';
+  for (const cat of CATS) {
+    const vendorMap = {};
+    for (const mx of months) {
+      for (const v of (DATA[mx][cat.key] || [])) {
+        if (!vendorMap[v.vendor]) vendorMap[v.vendor] = { jan: 0, feb: 0, note: '' };
+        vendorMap[v.vendor][mx] = v.amount || 0;
+        if (v.note) vendorMap[v.vendor].note = v.note;
+      }
+    }
+    for (const [vendor, vals] of Object.entries(vendorMap)) {
+      const amt = months.reduce((s, mx) => s + (vals[mx] || 0), 0);
+      const warn = vals.note ? ` <span title="${vals.note}" style="color:var(--warning);cursor:help">⚠</span>` : '';
+      rows += `<tr>
+        <td><span class="badge ${cat.badge}">${cat.label}</span></td>
+        <td>${vendor}${warn}</td>
+        <td class="r">${$F(amt)}</td>
+        ${momCol ? `<td class="r">${deltaChip(vals.jan||0, vals.feb||0, true)}</td>` : ''}
+      </tr>`;
+    }
+  }
+  return `<div class="card" style="margin-top:14px">
+    <div class="card-title">Vendor Line-Item Detail &nbsp;<span style="font-size:10px;color:var(--text3)">⚠ hover for notes</span></div>
+    <table class="qtable">
+      <thead><tr>
+        <th>Category</th><th>Vendor</th><th class="r">Amount</th>
+        ${momCol ? '<th class="r">MoM Δ</th>' : ''}
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+// ── MoM analysis (Total view only) ───────────────────────────────────────────
+function renderMoM() {
+  const rows = CATS.map(cat => {
+    const j = catTotal('jan', cat.key), f = catTotal('feb', cat.key), d = f - j;
+    return `<tr>
+      <td><span class="badge ${cat.badge}">${cat.label}</span></td>
+      <td class="r">${$F(j)}</td>
+      <td class="r">${$F(f)}</td>
+      <td class="r" style="color:${d>0?'var(--danger)':d<0?'var(--success)':'var(--text3)'}">${d===0?'—':(d>0?'+':'')+$F(d)}</td>
+      <td class="r">${deltaChip(j, f, true)}</td>
+    </tr>`;
+  }).join('');
+  const jt = monthTotal('jan'), ft = monthTotal('feb'), dt = ft - jt;
+  return `
+    <div class="section-label">Month-over-Month Spend Analysis</div>
+    <div class="card">
+      <table class="qtable">
+        <thead><tr>
+          <th>Category</th><th class="r">Jan 2026</th><th class="r">Feb 2026</th>
+          <th class="r">$ Change</th><th class="r">% Change</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr class="total">
+          <td>Total Spend</td><td class="r">${$F(jt)}</td><td class="r">${$F(ft)}</td>
+          <td class="r" style="color:${dt>0?'var(--danger)':dt<0?'var(--success)':'var(--text3)'}">${dt===0?'—':(dt>0?'+':'')+$F(dt)}</td>
+          <td class="r">${deltaChip(jt, ft, true)}</td>
+        </tr></tfoot>
+      </table>
+    </div>`;
+}
+
+// ── Accountant flags ──────────────────────────────────────────────────────────
+function renderFlags() {
+  const flags = [
+    { level:'red',   icon:'🔴', title:'HubSpot — Feb invoice not yet issued',    body:'Amount marked TBD in source data. Update once the invoice is received.' },
+    { level:'red',   icon:'🔴', title:'LocatePlus — Feb amount unknown',          body:'Entered as "?" in source sheet. Confirm with vendor and update the figure.' },
+    { level:'amber', icon:'🟡', title:'Red Panda — $9,000 Jan only (one-time)',   body:'PPL contract paid in January. Confirm fully closed or if follow-on payments are expected.' },
+    { level:'amber', icon:'🟡', title:'Revenue not entered',                      body:'Add Jan and Feb revenue in the input fields above to unlock ROAS and Net Revenue.' },
+    { level:'amber', icon:'🟡', title:'Leads not entered',                        body:'Add leads generated above to calculate Cost per Lead (CPL) for each month.' },
+  ];
+  return `
+    <div class="section-label">Accountant Flags — Data Requiring Attention</div>
+    <div class="flag-list">
+      ${flags.map(f => `
+        <div class="flag ${f.level}">
+          <div class="flag-icon">${f.icon}</div>
+          <div class="flag-body"><strong>${f.title}</strong><span>${f.body}</span></div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ── Charts HTML + build ───────────────────────────────────────────────────────
+function renderChartHTML(m) {
+  return `<div class="chart-row">
+    <div class="card">
+      <div class="card-title">${m === 'total' ? 'Spend by Category — Jan vs Feb' : 'Spend by Category'}</div>
+      <div style="position:relative;height:200px"><canvas id="chart-bar"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Spend Composition</div>
+      <div style="position:relative;height:200px"><canvas id="chart-donut"></canvas></div>
+    </div>
+  </div>`;
+}
+
+function buildCharts(m) {
+  const months = m === 'total' ? ['jan','feb'] : [m];
+  const catAmts = CATS.map(c => months.reduce((s,x) => s + catTotal(x,c.key), 0));
+  const barData = m === 'total'
+    ? { labels: CATS.map(c=>c.label), datasets: [
+        { label:'January',  data: CATS.map(c=>catTotal('jan',c.key)), backgroundColor:'#185fa5', borderRadius:4, borderSkipped:false },
+        { label:'February', data: CATS.map(c=>catTotal('feb',c.key)), backgroundColor:'#5DCAA5', borderRadius:4, borderSkipped:false },
+      ]}
+    : { labels: CATS.map(c=>c.label), datasets: [
+        { data: catAmts, backgroundColor: CAT_COLORS, borderRadius:4, borderSkipped:false }
+      ]};
+
+  const barOpts = {
+    responsive:true, maintainAspectRatio:false,
+    plugins: {
+      legend: { display: m==='total', labels:{ color:tickColor, font:{size:11}, boxWidth:10, padding:8 } },
+      tooltip: { callbacks: { label: ctx => '$'+Math.round(ctx.parsed.y).toLocaleString() } }
+    },
+    scales: {
+      x: { grid:{color:gridColor}, ticks:{color:tickColor, font:{size:10}} },
+      y: { grid:{color:gridColor}, ticks:{color:tickColor, font:{size:10}, callback: v=>'$'+Math.round(v/1000)+'k'} }
+    }
+  };
+  const donutOpts = {
+    responsive:true, maintainAspectRatio:false,
+    plugins: {
+      legend: { display:true, position:'right', labels:{color:tickColor, font:{size:10}, boxWidth:10, padding:8} },
+      tooltip: { callbacks: { label: ctx => ctx.label+': $'+Math.round(ctx.parsed).toLocaleString() } }
+    }
+  };
+  mkChart('chart-bar', 'bar', barData, barOpts);
+  mkChart('chart-donut', 'doughnut', {
+    labels: CATS.map(c=>c.label),
+    datasets: [{ data: catAmts, backgroundColor: CAT_COLORS, borderWidth:0 }]
+  }, donutOpts);
+}
+
+// ── Full render ───────────────────────────────────────────────────────────────
+let _month = 'jan';
+function render(m) {
+  destroyCharts();
+  const label = m==='jan' ? 'January 2026' : m==='feb' ? 'February 2026' : 'Jan–Feb 2026';
+  document.getElementById('dash').innerHTML = `
+    <div class="section-label">Key Metrics — ${label}</div>
+    ${renderKPIs(m)}
+    <div class="section-label">Spend Breakdown — ${label}</div>
+    ${renderChartHTML(m)}
+    ${renderCategoryTable(m)}
+    ${renderVendorTable(m)}
+    ${m === 'total' ? renderMoM() : ''}
+    ${renderFlags()}
+  `;
+  setTimeout(() => buildCharts(m), 0);
+}
+
+function showMonth(m) {
+  _month = m;
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['jan','feb','total'][i]===m));
+  render(m);
+}
+
+function recalc() { render(_month); }
+
+render('jan');
+</script>
+</body>
+</html>

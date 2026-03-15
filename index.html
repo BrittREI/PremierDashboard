@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CEO Dashboard — Premier Path Properties</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f4f0; --bg3: #efefeb;
+    --text: #1a1a18; --text2: #73726c; --text3: #a0a098;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+    --success: #0f6e56; --success-bg: #e1f5ee;
+    --info: #185fa5; --info-bg: #e6f1fb;
+    --danger: #a32d2d; --danger-bg: #fcebeb;
+    --warning: #854f0b; --warning-bg: #faeeda;
+    --radius: 8px; --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c; --bg2: #2a2a27; --bg3: #333330;
+      --text: #e8e6de; --text2: #a0a098; --text3: #73726c;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.18);
+      --success: #5DCAA5; --success-bg: #04342c;
+      --info: #85B7EB; --info-bg: #042C53;
+      --danger: #F09595; --danger-bg: #501313;
+      --warning: #EF9F27; --warning-bg: #412402;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+  .page { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .header { margin-bottom: 1.75rem; }
+  .header h1 { font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .header p { font-size: 13px; color: var(--text2); }
+  .tabs { display: flex; gap: 6px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .tab { padding: 6px 14px; border-radius: var(--radius); font-size: 12px; font-weight: 500; border: 0.5px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+  .tab:hover { background: var(--bg2); }
+  .tab.active { background: var(--text); color: var(--bg); border-color: transparent; }
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text2); margin: 1.5rem 0 0.75rem; padding-bottom: 6px; border-bottom: 0.5px solid var(--border); }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .kpi { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; }
+  .kpi-label { font-size: 11px; color: var(--text2); margin-bottom: 5px; font-weight: 500; }
+  .kpi-value { font-size: 22px; font-weight: 600; color: var(--text); line-height: 1; }
+  .kpi-sub { font-size: 10px; color: var(--text3); margin-top: 3px; }
+  .kpi.g .kpi-value { color: var(--success); }
+  .kpi.b .kpi-value { color: var(--info); }
+  .kpi.a .kpi-value { color: var(--warning); }
+  .kpi.r .kpi-value { color: var(--danger); }
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 1rem; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+  .card-title { font-size: 11px; font-weight: 500; color: var(--text2); margin-bottom: 10px; }
+  .chart-wrap { position: relative; width: 100%; }
+  .qtable { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .qtable th { font-size: 10px; font-weight: 600; color: var(--text2); text-align: left; padding: 6px 10px; border-bottom: 0.5px solid var(--border); white-space: nowrap; background: var(--bg2); }
+  .qtable td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+  .qtable tr:last-child td { border-bottom: none; }
+  .qtable tr.hl td { background: var(--bg2); font-weight: 500; }
+  .up { color: var(--success); font-size: 11px; }
+  .dn { color: var(--danger); font-size: 11px; }
+  .fl { color: var(--text3); font-size: 11px; }
+  .loading { display: flex; align-items: center; justify-content: center; height: 50vh; flex-direction: column; gap: 12px; }
+  .spinner { width: 28px; height: 28px; border: 2.5px solid var(--border2); border-top-color: var(--text); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 560px) { .chart-row { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+  /* ── Stage filter pills ── */
+  .stage-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .stage-pill { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 500; border: 0.5px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .stage-pill:hover { background: var(--bg2); }
+  .stage-pill.active { background: var(--text); color: var(--bg); border-color: transparent; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <h1>CEO Dashboard — Year &amp; Quarter Breakdown</h1>
+    <p id="subtitle">Premier Path Properties · Loading live HubSpot data…</p>
+  </div>
+  <div class="tabs" id="tab-bar" style="pointer-events:none;opacity:0.4">
+    <button class="tab active" onclick="show('all')">All Time</button>
+    <button class="tab" onclick="show('2024')">2024</button>
+    <button class="tab" onclick="show('2025')">2025</button>
+    <button class="tab" onclick="show('2026')">2026 YTD</button>
+  </div>
+  <div id="content">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p style="color:var(--text2);font-size:13px">Fetching live data from HubSpot…</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Theme helpers ────────────────────────────────────────────────────────────
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+const gridColor = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+const tickColor = dark ? '#a0a098' : '#73726c';
+
+// ── Stages that should NOT appear in the Active Pipeline ────────────────────
+const DEAD_STAGES = new Set(['Abandoned', 'Invalid Lead', 'Not Responding']);
+
+// ── Filter pipeline table by stage pill click ────────────────────────────────
+function filterPipeline(tableId, stage) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  table.querySelectorAll('tbody tr').forEach(row => {
+    row.style.display = (stage === 'All' || row.dataset.stage === stage) ? '' : 'none';
+  });
+  const pillsWrap = document.getElementById(tableId + '-pills');
+  if (pillsWrap) {
+    pillsWrap.querySelectorAll('.stage-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.stage === stage);
+    });
+  }
+}
+
+// ── Chart registry ───────────────────────────────────────────────────────────
+let _charts = [];
+function mkChart(id, type, data, options) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const c = new Chart(el, { type, data, options });
+  _charts.push(c);
+}
+function destroyCharts() { _charts.forEach(c => c.destroy()); _charts = []; }
+
+// ── Formatters ───────────────────────────────────────────────────────────────
+const $K = v => {
+  if (!v) return '$0';
+  const s = v < 0 ? '-' : '', a = Math.abs(v);
+  if (a >= 1e6) return `${s}$${(a / 1e6).toFixed(1)}M`;
+  if (a >= 1e3) return `${s}$${Math.round(a / 1000)}K`;
+  return `${s}$${a.toLocaleString()}`;
+};
+const $F = v => {
+  if (v === 0 || !v) return '—';
+  return (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString();
+};
+const pct = (n, d) => d === 0 ? '—' : (n / d * 100).toFixed(1) + '%';
+
+function getYQ(dateStr) {
+  const d = new Date(dateStr);
+  const m = d.getMonth();
+  return { year: d.getFullYear(), quarter: m < 3 ? 1 : m < 6 ? 2 : m < 9 ? 3 : 4 };
+}
+
+function fmtDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ── Data processing ──────────────────────────────────────────────────────────
+function processDeals(deals) {
+  const won  = deals.filter(d => d.isClosedWon  && d.closedate);
+  const lost = deals.filter(d => d.isClosedLost && d.closedate);
+  // Exclude dead-end stages (Abandoned, Invalid Lead, Not Responding) from active pipeline
+  const active = deals.filter(d => !d.isClosedWon && !d.isClosedLost && !DEAD_STAGES.has(d.stage));
+
+  const byYear = {};
+  const addTo = (arr, type) => arr.forEach(d => {
+    const { year, quarter } = getYQ(d.closedate);
+    const q = `Q${quarter}`;
+    if (!byYear[year]) byYear[year] = { Q1:{won:[],lost:[]}, Q2:{won:[],lost:[]}, Q3:{won:[],lost:[]}, Q4:{won:[],lost:[]} };
+    byYear[year][q][type].push(d);
+  });
+  addTo(won, 'won');
+  addTo(lost, 'lost');
+
+  return { won, lost, active, byYear };
+}
+
+// ── Chart options ────────────────────────────────────────────────────────────
+const xOpts = money => ({
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => money ? '$' + ctx.parsed.y.toLocaleString() : ctx.parsed.y } } },
+  scales: {
+    x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11 } } },
+    y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11 }, callback: v => money ? '$' + Math.round(v / 1000) + 'k' : v } }
+  }
+});
+const wlOpts = () => ({
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: true, labels: { color: tickColor, font: { size: 11 }, boxWidth: 10, padding: 8 } } },
+  scales: {
+    x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11 } } },
+    y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11 } } }
+  }
+});
+
+// ── HTML builders ────────────────────────────────────────────────────────────
+const kpi = (label, val, sub, color = '') =>
+  `<div class="kpi ${color}">
+    <div class="kpi-label">${label}</div>
+    <div class="kpi-value">${val}</div>
+    ${sub ? `<div class="kpi-sub">${sub}</div>` : ''}
+  </div>`;
+
+function dealTable(deals, { showQ = false, showDate = false } = {}) {
+  if (!deals.length) return `<p style="color:var(--text3);font-size:12px;padding:12px 0">No deals found.</p>`;
+  const th = showQ
+    ? `<th>Property</th><th>Q</th><th>Fee</th><th>Buyer Price</th><th>List Price</th>`
+    : showDate
+    ? `<th>Property</th><th>Fee</th><th>Buyer Price</th><th>List Price</th><th>Close Date</th>`
+    : `<th>Property</th><th>Fee</th><th>Buyer Price</th><th>List Price</th>`;
+
+  const rows = deals.map(d => {
+    const q = showQ && d.closedate ? `Q${getYQ(d.closedate).quarter}` : '';
+    const dt = showDate && d.closedate ? fmtDate(d.closedate) : '';
+    const extra = showQ ? `<td>${q}</td>` : showDate ? `<td>${dt}</td>` : '';
+    return `<tr><td>${d.name}</td>${extra}<td>${$F(d.fee)}</td><td>${$F(d.buyerPrice)}</td><td>${$F(d.listPrice)}</td></tr>`;
+  }).join('');
+
+  return `<div class="card" style="padding:0;overflow:hidden">
+    <table class="qtable"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table>
+  </div>`;
+}
+
+// ── All-Time pane ────────────────────────────────────────────────────────────
+function buildAllTime(won, lost, byYear) {
+  const totalFee = won.reduce((s, d) => s + d.fee, 0);
+  const avgFee = won.length ? totalFee / won.length : 0;
+  const years = Object.keys(byYear).sort();
+  const qs = ['Q1','Q2','Q3','Q4'];
+
+  // Annual table
+  let prevRev = null;
+  const annualRows = years.map(yr => {
+    const yw = qs.flatMap(q => byYear[yr][q].won);
+    const yl = qs.flatMap(q => byYear[yr][q].lost);
+    const rev = yw.reduce((s, d) => s + d.fee, 0);
+    const avg = yw.length ? rev / yw.length : 0;
+    const vs = prevRev === null ? `<span class="fl">—</span>`
+      : rev >= prevRev
+        ? `<span class="up">+${Math.round((rev - prevRev) / prevRev * 100)}% rev ↑</span>`
+        : `<span class="dn">${Math.round((rev - prevRev) / prevRev * 100)}% rev ↓</span>`;
+    prevRev = rev;
+    const label = parseInt(yr) === new Date().getFullYear() ? `${yr} YTD` : yr;
+    return `<tr><td>${label}</td><td>${yw.length}</td><td>${yl.length}</td><td>${pct(yw.length, yw.length + yl.length)}</td><td>${$F(rev)}</td><td>${$F(avg)}</td><td>${vs}</td></tr>`;
+  }).join('');
+
+  // All-quarters chart data
+  const qColors = { 2024: '#B5D4F4', 2025: '#5DCAA5', 2026: '#3B8BD4' };
+  const labels = [], revData = [], wonData = [], lostData = [], bgColors = [];
+  for (const yr of years) {
+    for (const q of qs) {
+      const qd = byYear[yr][q];
+      if (!qd.won.length && !qd.lost.length) continue;
+      labels.push(`${yr} ${q}`);
+      revData.push(qd.won.reduce((s, d) => s + d.fee, 0));
+      wonData.push(qd.won.length);
+      lostData.push(qd.lost.length);
+      bgColors.push(qColors[parseInt(yr)] || '#B5D4F4');
+    }
+  }
+
+  return {
+    html: `
+      <div class="section-label">All Time — ${years[0]} through today</div>
+      <div class="kpi-grid">
+        ${kpi('Total Revenue', $K(totalFee), `${won.length} deals closed`, 'g')}
+        ${kpi('Avg Fee / Deal', $F(avgFee), `all ${won.length} closings`, 'b')}
+        ${kpi('Deals Won', won.length, 'closed won')}
+        ${kpi('Deals Lost', lost.length, 'closed lost', 'r')}
+        ${kpi('Close Rate', pct(won.length, won.length + lost.length), `${won.length} of ${won.length + lost.length} closings`, 'a')}
+      </div>
+      <div class="section-label">Annual Comparison</div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table class="qtable">
+          <thead><tr><th>Year</th><th>Deals Won</th><th>Deals Lost</th><th>Close Rate</th><th>Revenue</th><th>Avg Fee</th><th>vs Prior Year</th></tr></thead>
+          <tbody>${annualRows}</tbody>
+        </table>
+      </div>
+      <div class="section-label">Revenue by Quarter (all years)</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chart-all-rev"></canvas></div>
+      <div class="section-label">Deals Won vs Lost by Quarter</div>
+      <div class="chart-wrap" style="height:180px"><canvas id="chart-all-wl"></canvas></div>`,
+    charts: () => {
+      mkChart('chart-all-rev', 'bar', {
+        labels,
+        datasets: [{ data: revData, backgroundColor: bgColors, borderRadius: 4, borderSkipped: false }]
+      }, xOpts(true));
+      mkChart('chart-all-wl', 'bar', {
+        labels,
+        datasets: [
+          { label: 'Won',  data: wonData,  backgroundColor: '#1D9E75', borderRadius: 4, borderSkipped: false },
+          { label: 'Lost', data: lostData, backgroundColor: '#E24B4A', borderRadius: 4, borderSkipped: false }
+        ]
+      }, wlOpts());
+    }
+  };
+}
+
+// ── Per-year pane ────────────────────────────────────────────────────────────
+function buildYear(year, byYear, active) {
+  const qs = ['Q1','Q2','Q3','Q4'];
+  const qLabels = { Q1:'Q1 (Jan–Mar)', Q2:'Q2 (Apr–Jun)', Q3:'Q3 (Jul–Sep)', Q4:'Q4 (Oct–Dec)' };
+  const yearData = byYear[year] || { Q1:{won:[],lost:[]}, Q2:{won:[],lost:[]}, Q3:{won:[],lost:[]}, Q4:{won:[],lost:[]} };
+
+  const allWon  = qs.flatMap(q => yearData[q].won);
+  const allLost = qs.flatMap(q => yearData[q].lost);
+  const totalRev = allWon.reduce((s, d) => s + d.fee, 0);
+  const avgFee   = allWon.length ? totalRev / allWon.length : 0;
+
+  const revByQ = [], wonByQ = [], lostByQ = [];
+  const qRows = qs.map(q => {
+    const qd = yearData[q];
+    const rev = qd.won.reduce((s, d) => s + d.fee, 0);
+    const avg = qd.won.length ? rev / qd.won.length : 0;
+    const best = qd.won.slice().sort((a, b) => b.fee - a.fee)[0];
+    revByQ.push(rev); wonByQ.push(qd.won.length); lostByQ.push(qd.lost.length);
+    if (!qd.won.length && !qd.lost.length) return '';
+    return `<tr><td>${qLabels[q]}</td><td>${qd.won.length}</td><td>${qd.lost.length}</td><td>${pct(qd.won.length, qd.won.length + qd.lost.length)}</td><td>${$F(rev)}</td><td>${$F(avg)}</td><td>${best ? best.name.substring(0, 28) + ' (' + $F(best.fee) + ')' : '—'}</td></tr>`;
+  }).join('');
+
+  const isCurrent = year === new Date().getFullYear();
+  const yearLabel = isCurrent ? `${year} YTD` : `${year} Full Year`;
+  const cRev = `chart-${year}-rev`, cWl = `chart-${year}-wl`;
+
+  const colorsMap = {
+    2024: ['#B5D4F4','#85B7EB','#378ADD','#185FA5'],
+    2025: ['#9FE1CB','#5DCAA5','#1D9E75','#0F6E56'],
+    2026: ['#3B8BD4','#5B9FE0','#7DB3E8','#9EC7EE'],
+  };
+  const colors = colorsMap[year] || colorsMap[2024];
+
+  const sortedWon = allWon.slice().sort((a, b) => new Date(a.closedate) - new Date(b.closedate));
+
+  const pipelineTableId = `pipeline-${year}-table`;
+  const pipelineSection = (isCurrent && active.length) ? (() => {
+    const stages = [...new Set(active.map(d => d.stage).filter(Boolean))].sort();
+    return `
+    <div class="section-label">Active Pipeline — deals in progress</div>
+    <div class="stage-pills" id="${pipelineTableId}-pills">
+      <button class="stage-pill active" data-stage="All" onclick="filterPipeline('${pipelineTableId}','All')">All (${active.length})</button>
+      ${stages.map(s => `<button class="stage-pill" data-stage="${s}" onclick="filterPipeline('${pipelineTableId}','${s}')">${s} (${active.filter(d => d.stage === s).length})</button>`).join('')}
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="qtable" id="${pipelineTableId}">
+        <thead><tr><th>Property</th><th>Stage</th><th>Fee</th><th>Buyer Price</th><th>List Price</th></tr></thead>
+        <tbody>
+          ${active.map(d => `<tr data-stage="${d.stage}">
+            <td>${d.name}</td>
+            <td>${d.stage}</td>
+            <td>${$F(d.fee)}</td>
+            <td>${$F(d.buyerPrice)}</td>
+            <td>${$F(d.listPrice)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  })() : '';
+
+  return {
+    html: `
+      <div class="section-label">${yearLabel}</div>
+      <div class="kpi-grid">
+        ${kpi('Total Revenue', $K(totalRev), `${allWon.length} deals closed`, 'g')}
+        ${kpi('Avg Fee / Deal', $F(avgFee), `${allWon.length} closings`, 'b')}
+        ${kpi('Deals Won', allWon.length, 'closed won')}
+        ${kpi('Deals Lost', allLost.length, 'closed lost', 'r')}
+        ${kpi('Close Rate', pct(allWon.length, allWon.length + allLost.length), `${allWon.length} of ${allWon.length + allLost.length}`, 'a')}
+        ${isCurrent ? kpi('Active Pipeline', active.length, 'deals in progress') : ''}
+      </div>
+      <div class="section-label">${year} by Quarter</div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table class="qtable">
+          <thead><tr><th>Quarter</th><th>Won</th><th>Lost</th><th>Close Rate</th><th>Revenue</th><th>Avg Fee</th><th>Best Deal</th></tr></thead>
+          <tbody>${qRows || '<tr><td colspan="7" style="color:var(--text3);text-align:center;padding:12px">No closed deals</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div class="chart-row">
+        <div class="card"><div class="card-title">${year} revenue by quarter</div><div class="chart-wrap" style="height:160px"><canvas id="${cRev}"></canvas></div></div>
+        <div class="card"><div class="card-title">${year} deals: won vs lost</div><div class="chart-wrap" style="height:160px"><canvas id="${cWl}"></canvas></div></div>
+      </div>
+      <div class="section-label">${year} All Closed-Won Deals</div>
+      ${dealTable(sortedWon, { showQ: true })}
+      ${pipelineSection}`,
+    charts: () => {
+      mkChart(cRev, 'bar', {
+        labels: ['Q1','Q2','Q3','Q4'],
+        datasets: [{ data: revByQ, backgroundColor: colors, borderRadius: 4, borderSkipped: false }]
+      }, xOpts(true));
+      mkChart(cWl, 'bar', {
+        labels: ['Q1','Q2','Q3','Q4'],
+        datasets: [
+          { label: 'Won',  data: wonByQ,  backgroundColor: '#1D9E75', borderRadius: 4, borderSkipped: false },
+          { label: 'Lost', data: lostByQ, backgroundColor: '#E24B4A', borderRadius: 4, borderSkipped: false }
+        ]
+      }, wlOpts());
+    }
+  };
+}
+
+// ── Tab switcher ─────────────────────────────────────────────────────────────
+function show(id) {
+  ['all','2024','2025','2026'].forEach(p => {
+    const el = document.getElementById('pane-' + p);
+    if (el) el.style.display = p === id ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['all','2024','2025','2026'][i] === id);
+  });
+  updateFunnel(id);
+}
+
+// ── Update funnel section when tab changes ──────────────────────────────────
+function updateFunnel(tabId) {
+  const funnelEl = document.getElementById('funnel-section');
+  if (!funnelEl || !window._funnelData) return;
+  const key = tabId === 'all' ? 'all' : parseInt(tabId);
+  const f = window._funnelData[key] || window._funnelData['all'];
+  const deals = window._allDeals || [];
+  const yearRanges = {
+    2024: ['2024-01-01', '2025-01-01'],
+    2025: ['2025-01-01', '2026-01-01'],
+    2026: ['2026-01-01', null],
+  };
+  let wonDeals = deals.filter(d => d.isClosedWon);
+  if (tabId !== 'all') {
+    const yr = parseInt(tabId);
+    const [start, end] = yearRanges[yr];
+    wonDeals = wonDeals.filter(d => {
+      if (!d.closedate) return false;
+      if (d.closedate < start) return false;
+      if (end && d.closedate >= end) return false;
+      return true;
+    });
+  }
+  const totalFee = wonDeals.reduce((s, d) => s + d.fee, 0);
+  const avgRevDeal = wonDeals.length ? totalFee / wonDeals.length : 0;
+  const label = tabId === 'all' ? 'All Time' : tabId === '2026' ? '2026 YTD' : tabId;
+  funnelEl.innerHTML = renderFunnel(f, avgRevDeal, label);
+}
+
+// ── Main render ──────────────────────────────────────────────────────────────
+function render(deals) {
+  destroyCharts();
+  const { won, lost, active, byYear } = processDeals(deals);
+  const years = [2024, 2025, 2026];
+
+  const allTime  = buildAllTime(won, lost, byYear);
+  const yearBuilt = {};
+  for (const yr of years) yearBuilt[yr] = buildYear(yr, byYear, active);
+
+  document.getElementById('content').innerHTML = `
+    <div id="pane-all">${allTime.html}</div>
+    ${years.map(yr => `<div id="pane-${yr}" style="display:none">${yearBuilt[yr].html}</div>`).join('')}
+  `;
+
+  setTimeout(() => {
+    allTime.charts();
+    for (const yr of years) yearBuilt[yr].charts();
+  }, 0);
+
+  document.getElementById('tab-bar').removeAttribute('style');
+}
+
+// ── Funnel metrics ────────────────────────────────────────────────────────────
+function renderFunnel({ grossLeads, netLeads, contracts, closedWon }, avgRevDeal, label = 'All Time') {
+  const ratio = (n, d) => d === 0 ? '—' : (n / d * 100).toFixed(1) + '%';
+  const r2 = (n, d) => d === 0 ? '—' : (n / d).toFixed(2) + 'x';
+
+  const metrics = [
+    {
+      label: 'Net → Gross Lead Ratio',
+      value: ratio(netLeads, grossLeads),
+      sub: `${netLeads.toLocaleString()} net of ${grossLeads.toLocaleString()} gross leads`,
+      tip: 'Contacts that converted to a signed contract vs all contacts',
+      color: 'b',
+    },
+    {
+      label: 'Contract → Net Lead Ratio',
+      value: r2(contracts, netLeads),
+      sub: `${contracts} contracts from ${netLeads.toLocaleString()} net leads`,
+      tip: 'How many contracts per qualified lead',
+      color: '',
+    },
+    {
+      label: 'Contract to Close Rate',
+      value: ratio(closedWon, contracts),
+      sub: `${closedWon} closed of ${contracts} contracts`,
+      tip: 'Percentage of signed contracts that closed won',
+      color: 'g',
+    },
+    {
+      label: 'Avg Revenue / Deal',
+      value: $F(avgRevDeal),
+      sub: `across ${closedWon} closed won deals`,
+      tip: 'Average wholesale fee per closed won deal',
+      color: 'a',
+    },
+  ];
+
+  return `
+    <div class="section-label" style="margin-top:0">Pipeline Funnel Metrics — ${label}</div>
+    <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(175px, 1fr))">
+      ${metrics.map(m => `
+        <div class="kpi ${m.color}" title="${m.tip}">
+          <div class="kpi-label">${m.label}</div>
+          <div class="kpi-value">${m.value}</div>
+          <div class="kpi-sub">${m.sub}</div>
+        </div>`).join('')}
+    </div>
+    <div style="margin-top:8px">
+      <div style="font-size:10px;color:var(--text3)">
+        Gross Leads: ${grossLeads.toLocaleString()} total contacts &nbsp;·&nbsp;
+        Net Leads: ${netLeads.toLocaleString()} contacts with a signed contract &nbsp;·&nbsp;
+        Contracts: ${contracts} deals created &nbsp;·&nbsp;
+        Closed Won: ${closedWon} deals
+      </div>
+    </div>`;
+}
+
+// ── Bootstrap ────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const res = await fetch('/api/deals');
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.error || `Server error ${res.status}`);
+    }
+    const data = await res.json();
+    const { deals, fetchedAt, total } = data;
+    const funnel = data.funnel || null;
+
+    // Store globally for tab switching
+    window._allDeals = deals;
+    window._funnelData = funnel || {};
+
+    // Render main dashboard
+    render(deals);
+
+    // Inject funnel metrics above the tab panes
+    const won = deals.filter(d => d.isClosedWon);
+    const totalFee = won.reduce((s, d) => s + d.fee, 0);
+    const avgRevDeal = won.length ? totalFee / won.length : 0;
+
+    const funnelEl = document.createElement('div');
+    funnelEl.id = 'funnel-section';
+    funnelEl.style.cssText = 'background:var(--bg2);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:1.5rem;border:0.5px solid var(--border)';
+    const safeFunnel = (funnel && funnel.all) ? funnel.all : { grossLeads: 0, netLeads: 0, contracts: deals.length, closedWon: won.length };
+    funnelEl.innerHTML = renderFunnel(safeFunnel, avgRevDeal, 'All Time');
+    document.getElementById('content').prepend(funnelEl);
+
+    const when = new Date(fetchedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    document.getElementById('subtitle').textContent =
+      `Premier Path Properties · HubSpot live data · ${total} deals · Updated ${when}`;
+  } catch (e) {
+    document.getElementById('content').innerHTML = `
+      <div class="loading">
+        <p style="color:var(--danger);font-size:13px">⚠ Failed to load data: ${e.message}</p>
+        <button onclick="init()" style="margin-top:10px;padding:6px 16px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;font-size:12px">Retry</button>
+      </div>`;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
