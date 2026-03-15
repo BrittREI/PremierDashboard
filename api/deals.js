@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     let allDeals = [];
     let after = null;
     do {
-      const url = `https://api.hubapi.com/crm/v3/objects/deals?limit=100&archived=false&properties=${props}&associations=contacts${after ? `&after=${after}` : ''}`;
+      const url = `https://api.hubapi.com/crm/v3/objects/deals?limit=100&archived=false&properties=${props}&associations=contacts${after ? '&after=' + after : ''}`;
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
         return res.status(r.status).json({ error: e.message || `HubSpot error ${r.status}` });
