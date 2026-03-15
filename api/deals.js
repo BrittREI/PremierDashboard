@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
 
   const token = process.env.HUBSPOT_TOKEN;
   if (!token) {
@@ -32,7 +32,8 @@ export default async function handler(req, res) {
     let allDeals = [];
     let after = null;
     do {
-      const url = `https://api.hubapi.com/crm/v3/objects/deals?limit=100&archived=false&properties=${props}&associations=contacts${after ? '&after=' + after : ''}`;
+      const url = 'https://api.hubapi.com/crm/v3/objects/deals?limit=100&archived=false&properties=' + props + '&associations=contacts' + (after ? '&after=' + after : '');
+      const r = await fetch(url, { headers: h });
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
         return res.status(r.status).json({ error: e.message || `HubSpot error ${r.status}` });
