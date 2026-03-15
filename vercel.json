@@ -1,3 +1,7 @@
 {
-  "cleanUrls": true
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/team", "destination": "/team.html" },
+    { "source": "/expenses", "destination": "/expenses.html" }
+  ]
 }

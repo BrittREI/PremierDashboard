@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Performance — Premier Path Properties</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f4f0; --bg3: #efefeb;
+    --text: #1a1a18; --text2: #73726c; --text3: #a0a098;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+    --success: #0f6e56; --success-bg: #e1f5ee;
+    --info: #185fa5; --info-bg: #e6f1fb;
+    --danger: #a32d2d; --danger-bg: #fcebeb;
+    --warning: #854f0b; --warning-bg: #faeeda;
+    --radius: 8px; --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c; --bg2: #2a2a27; --bg3: #333330;
+      --text: #e8e6de; --text2: #a0a098; --text3: #73726c;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.18);
+      --success: #5DCAA5; --success-bg: #04342c;
+      --info: #85B7EB; --info-bg: #042C53;
+      --danger: #F09595; --danger-bg: #501313;
+      --warning: #EF9F27; --warning-bg: #412402;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+  .page { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .page-nav { display: flex; gap: 4px; margin-bottom: 1.75rem; border-bottom: 0.5px solid var(--border); padding-bottom: 1rem; }
+  .page-nav a { padding: 5px 12px; border-radius: var(--radius); font-size: 12px; font-weight: 500; color: var(--text2); text-decoration: none; transition: all 0.15s; border: 0.5px solid transparent; }
+  .page-nav a:hover { background: var(--bg2); color: var(--text); }
+  .page-nav a.active { background: var(--text); color: var(--bg); }
+  .header { margin-bottom: 1.75rem; }
+  .header h1 { font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .header p { font-size: 13px; color: var(--text2); }
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text2); margin: 1.75rem 0 0.75rem; padding-bottom: 6px; border-bottom: 0.5px solid var(--border); }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
+  .kpi { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; }
+  .kpi-label { font-size: 11px; color: var(--text2); margin-bottom: 5px; font-weight: 500; }
+  .kpi-value { font-size: 22px; font-weight: 600; color: var(--text); line-height: 1; }
+  .kpi-sub { font-size: 10px; color: var(--text3); margin-top: 3px; }
+  .kpi.g .kpi-value { color: var(--success); }
+  .kpi.b .kpi-value { color: var(--info); }
+  .kpi.a .kpi-value { color: var(--warning); }
+  .kpi.r .kpi-value { color: var(--danger); }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+  .card-title { font-size: 11px; font-weight: 500; color: var(--text2); margin-bottom: 10px; }
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 1rem; }
+  .qtable { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .qtable th { font-size: 10px; font-weight: 600; color: var(--text2); text-align: left; padding: 6px 10px; border-bottom: 0.5px solid var(--border); white-space: nowrap; background: var(--bg2); }
+  .qtable td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); color: var(--text); }
+  .qtable tr:last-child td { border-bottom: none; }
+  .qtable td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .up { color: var(--success); }
+  .dn { color: var(--danger); }
+  .fl { color: var(--text3); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+  .badge-g { background: var(--success-bg); color: var(--success); }
+  .badge-b { background: var(--info-bg); color: var(--info); }
+  .badge-a { background: var(--warning-bg); color: var(--warning); }
+  .badge-r { background: var(--danger-bg); color: var(--danger); }
+  .owner-card { border: 0.5px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 1.25rem; overflow: hidden; }
+  .owner-card-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg2); cursor: pointer; user-select: none; }
+  .owner-card-header h3 { font-size: 13px; font-weight: 600; color: var(--text); }
+  .owner-card-header .meta { font-size: 11px; color: var(--text2); display: flex; gap: 16px; }
+  .owner-card-body { padding: 16px; display: none; }
+  .owner-card-body.open { display: block; }
+  .status-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .status-chip { padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 500; background: var(--bg3); color: var(--text2); border: 0.5px solid var(--border); white-space: nowrap; }
+  .loading { display: flex; align-items: center; justify-content: center; height: 50vh; flex-direction: column; gap: 12px; }
+  .spinner { width: 28px; height: 28px; border: 2.5px solid var(--border2); border-top-color: var(--text); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toggle-arrow { font-size: 12px; color: var(--text3); transition: transform 0.2s; }
+  .toggle-arrow.open { transform: rotate(180deg); }
+  @media (max-width: 600px) { .chart-row { grid-template-columns: 1fr; } .owner-card-header { flex-direction: column; align-items: flex-start; gap: 6px; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <nav class="page-nav">
+    <a href="/">CEO Dashboard</a>
+    <a href="/team" class="active">Team</a>
+    <a href="/expenses">Spend &amp; ROI</a>
+  </nav>
+  <div class="header">
+    <h1>Team Performance</h1>
+    <p id="subtitle">Premier Path Properties · Loading live HubSpot data…</p>
+  </div>
+  <div id="content">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p style="color:var(--text2);font-size:13px">Fetching team data from HubSpot…</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+const gridColor = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+const tickColor = dark ? '#a0a098' : '#73726c';
+
+let _charts = [];
+function mkChart(id, type, data, options) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  _charts.push(new Chart(el, { type, data, options }));
+}
+
+const $F = v => {
+  if (!v || v === 0) return '—';
+  const s = v < 0 ? '-$' : '$';
+  const a = Math.abs(Math.round(v));
+  if (a >= 1000000) return s + (a / 1000000).toFixed(1) + 'M';
+  if (a >= 1000) return s + Math.round(a / 1000) + 'K';
+  return s + a.toLocaleString();
+};
+
+const pct = v => v > 0 ? v.toFixed(1) + '%' : '—';
+
+const xOpts = money => ({
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 10 } } },
+    y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 10 }, callback: v => money ? '$' + Math.round(v / 1000) + 'k' : v } }
+  }
+});
+
+function toggleCard(id) {
+  const body = document.getElementById('body-' + id);
+  const arrow = document.getElementById('arrow-' + id);
+  if (!body) return;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  if (arrow) arrow.classList.toggle('open', !isOpen);
+}
+
+function render(data) {
+  const { owners, leadStatusLabels, fetchedAt } = data;
+
+  // Sort: lead managers (more contacts than deals) first, then deal owners
+  const sorted = owners.slice().sort((a, b) => b.contacts.total - a.contacts.total);
+
+  // ── Summary KPIs ─────────────────────────────────────────────────────────
+  const totalContacts  = owners.reduce((s, o) => s + o.contacts.total, 0);
+  const totalActive    = owners.reduce((s, o) => s + o.contacts.activeLeads, 0);
+  const totalConverted = owners.reduce((s, o) => s + o.contacts.withDeals, 0);
+  const totalRevenue   = owners.reduce((s, o) => s + o.deals.revenue, 0);
+  const totalPipeline  = owners.reduce((s, o) => s + o.deals.activePipeline, 0);
+  const totalWon       = owners.reduce((s, o) => s + o.deals.closedWon, 0);
+  const overallConv    = totalContacts > 0 ? (totalConverted / totalContacts * 100).toFixed(1) : '0.0';
+
+  // ── Contact leaderboard ───────────────────────────────────────────────────
+  const contactRows = sorted.map(o => `
+    <tr>
+      <td style="font-weight:500">${o.name}</td>
+      <td class="num">${o.contacts.total}</td>
+      <td class="num">${o.contacts.activeLeads}</td>
+      <td class="num">${o.contacts.withDeals}</td>
+      <td class="num ${o.contacts.conversionRate >= 10 ? 'up' : o.contacts.conversionRate >= 5 ? '' : 'fl'}">${pct(o.contacts.conversionRate)}</td>
+    </tr>`).join('');
+
+  // ── Deal leaderboard ──────────────────────────────────────────────────────
+  const dealSorted = owners.slice().sort((a, b) => b.deals.revenue - a.deals.revenue);
+  const dealRows = dealSorted.map(o => `
+    <tr>
+      <td style="font-weight:500">${o.name}</td>
+      <td class="num">${o.deals.total}</td>
+      <td class="num">${o.deals.closedWon}</td>
+      <td class="num ${o.deals.closeRate >= 50 ? 'up' : o.deals.closeRate > 0 ? '' : 'fl'}">${pct(o.deals.closeRate)}</td>
+      <td class="num ${o.deals.revenue > 0 ? 'up' : 'fl'}">${$F(o.deals.revenue)}</td>
+      <td class="num">${$F(o.deals.activePipeline)}</td>
+    </tr>`).join('');
+
+  // ── Per-owner expandable cards ────────────────────────────────────────────
+  const ownerCards = sorted.map((o, i) => {
+    const statusEntries = Object.entries(o.contacts.statusBreakdown)
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, v]) => `<span class="status-chip">${leadStatusLabels[k] || k}: ${v}</span>`)
+      .join('');
+
+    return `
+    <div class="owner-card">
+      <div class="owner-card-header" onclick="toggleCard(${i})">
+        <h3>${o.name}</h3>
+        <div class="meta">
+          <span>${o.contacts.total} contacts · ${pct(o.contacts.conversionRate)} conversion</span>
+          <span>${o.deals.closedWon} deals won · ${$F(o.deals.revenue)} revenue</span>
+          <span id="arrow-${i}" class="toggle-arrow">▼</span>
+        </div>
+      </div>
+      <div id="body-${i}" class="owner-card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em">Contacts</div>
+            <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);gap:8px">
+              <div class="kpi"><div class="kpi-label">Total</div><div class="kpi-value" style="font-size:18px">${o.contacts.total}</div></div>
+              <div class="kpi b"><div class="kpi-label">Active Leads</div><div class="kpi-value" style="font-size:18px">${o.contacts.activeLeads}</div></div>
+              <div class="kpi g"><div class="kpi-label">Converted</div><div class="kpi-value" style="font-size:18px">${o.contacts.withDeals}</div></div>
+              <div class="kpi a"><div class="kpi-label">Conv. Rate</div><div class="kpi-value" style="font-size:18px">${pct(o.contacts.conversionRate)}</div></div>
+            </div>
+            <div style="margin-top:10px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Lead Status Breakdown</div>
+            <div class="status-grid">${statusEntries || '<span style="color:var(--text3);font-size:11px">No contacts</span>'}</div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em">Deals</div>
+            <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);gap:8px">
+              <div class="kpi"><div class="kpi-label">Total Deals</div><div class="kpi-value" style="font-size:18px">${o.deals.total}</div></div>
+              <div class="kpi g"><div class="kpi-label">Closed Won</div><div class="kpi-value" style="font-size:18px">${o.deals.closedWon}</div></div>
+              <div class="kpi b"><div class="kpi-label">Revenue</div><div class="kpi-value" style="font-size:16px">${$F(o.deals.revenue)}</div></div>
+              <div class="kpi a"><div class="kpi-label">Active Pipeline</div><div class="kpi-value" style="font-size:16px">${$F(o.deals.activePipeline)}</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── Chart data ────────────────────────────────────────────────────────────
+  const contactNames  = sorted.map(o => o.name.split(' ')[0]);
+  const contactTotals = sorted.map(o => o.contacts.total);
+  const contactActive = sorted.map(o => o.contacts.activeLeads);
+  const contactConv   = sorted.map(o => o.contacts.withDeals);
+
+  const dealNames    = dealSorted.map(o => o.name.split(' ')[0]);
+  const dealRevenue  = dealSorted.map(o => o.deals.revenue);
+  const dealPipeline = dealSorted.map(o => o.deals.activePipeline);
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  document.getElementById('content').innerHTML = `
+    <div class="section-label" style="margin-top:0">Team Summary</div>
+    <div class="kpi-grid">
+      <div class="kpi b"><div class="kpi-label">Total Contacts</div><div class="kpi-value">${totalContacts.toLocaleString()}</div><div class="kpi-sub">across all owners</div></div>
+      <div class="kpi"><div class="kpi-label">Active Leads</div><div class="kpi-value">${totalActive.toLocaleString()}</div><div class="kpi-sub">workable contacts</div></div>
+      <div class="kpi a"><div class="kpi-label">Contact → Deal</div><div class="kpi-value">${overallConv}%</div><div class="kpi-sub">${totalConverted} converted</div></div>
+      <div class="kpi g"><div class="kpi-label">Total Revenue</div><div class="kpi-value">${$F(totalRevenue)}</div><div class="kpi-sub">${totalWon} deals won</div></div>
+      <div class="kpi"><div class="kpi-label">Active Pipeline</div><div class="kpi-value">${$F(totalPipeline)}</div><div class="kpi-sub">in progress</div></div>
+    </div>
+
+    <div class="chart-row" style="margin-bottom:1.5rem">
+      <div class="card">
+        <div class="card-title">Contacts by Owner</div>
+        <div class="chart-wrap" style="height:180px"><canvas id="chart-contacts"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Revenue by Owner ($)</div>
+        <div class="chart-wrap" style="height:180px"><canvas id="chart-revenue"></canvas></div>
+      </div>
+    </div>
+
+    <div class="section-label">Lead Managers — Contact Funnel</div>
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:1.5rem">
+      <table class="qtable">
+        <thead><tr>
+          <th>Name</th>
+          <th style="text-align:right">Contacts</th>
+          <th style="text-align:right">Active Leads</th>
+          <th style="text-align:right">Converted to Deal</th>
+          <th style="text-align:right">Conv. Rate</th>
+        </tr></thead>
+        <tbody>${contactRows}</tbody>
+      </table>
+    </div>
+
+    <div class="section-label">Deal Owners — Closed Performance</div>
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:1.5rem">
+      <table class="qtable">
+        <thead><tr>
+          <th>Name</th>
+          <th style="text-align:right">Deals Created</th>
+          <th style="text-align:right">Closed Won</th>
+          <th style="text-align:right">Close Rate</th>
+          <th style="text-align:right">Revenue</th>
+          <th style="text-align:right">Active Pipeline</th>
+        </tr></thead>
+        <tbody>${dealRows}</tbody>
+      </table>
+    </div>
+
+    <div class="section-label">Individual Breakdown</div>
+    ${ownerCards}
+  `;
+
+  // Draw charts
+  mkChart('chart-contacts', 'bar', {
+    labels: contactNames,
+    datasets: [
+      { label: 'Total', data: contactTotals, backgroundColor: '#3B8BD4', borderRadius: 4, borderSkipped: false },
+      { label: 'Active', data: contactActive, backgroundColor: '#5DCAA5', borderRadius: 4, borderSkipped: false },
+      { label: 'Converted', data: contactConv, backgroundColor: '#EF9F27', borderRadius: 4, borderSkipped: false },
+    ]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: true, labels: { color: tickColor, font: { size: 10 }, boxWidth: 10, padding: 8 } } },
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 10 } } },
+      y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 10 } } },
+    }
+  });
+
+  mkChart('chart-revenue', 'bar', {
+    labels: dealNames,
+    datasets: [
+      { label: 'Revenue', data: dealRevenue, backgroundColor: '#5DCAA5', borderRadius: 4, borderSkipped: false },
+      { label: 'Pipeline', data: dealPipeline, backgroundColor: '#85B7EB', borderRadius: 4, borderSkipped: false },
+    ]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: true, labels: { color: tickColor, font: { size: 10 }, boxWidth: 10, padding: 8 } } },
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 10 } } },
+      y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 10 }, callback: v => '$' + Math.round(v / 1000) + 'k' } },
+    }
+  });
+
+  const when = new Date(fetchedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  document.getElementById('subtitle').textContent = 'Premier Path Properties · HubSpot live data · Updated ' + when;
+}
+
+async function init() {
+  try {
+    const res = await fetch('/api/team');
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.error || 'Server error ' + res.status);
+    }
+    render(await res.json());
+  } catch (e) {
+    document.getElementById('content').innerHTML = `
+      <div class="loading">
+        <p style="color:var(--danger);font-size:13px">⚠ Failed to load: ${e.message}</p>
+        <button onclick="init()" style="margin-top:10px;padding:6px 16px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;font-size:12px">Retry</button>
+      </div>`;
+  }
+}
+
+init();
+</script>
+</body>
+</html>

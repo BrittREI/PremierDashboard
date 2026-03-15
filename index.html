@@ -72,6 +72,11 @@
 </head>
 <body>
 <div class="page">
+  <nav style="display:flex;gap:4px;margin-bottom:1.75rem;border-bottom:0.5px solid var(--border);padding-bottom:1rem">
+    <a href="/" style="padding:5px 12px;border-radius:var(--radius);font-size:12px;font-weight:500;background:var(--text);color:var(--bg);text-decoration:none">CEO Dashboard</a>
+    <a href="/team" style="padding:5px 12px;border-radius:var(--radius);font-size:12px;font-weight:500;color:var(--text2);text-decoration:none;border:0.5px solid transparent">Team</a>
+    <a href="/expenses" style="padding:5px 12px;border-radius:var(--radius);font-size:12px;font-weight:500;color:var(--text2);text-decoration:none;border:0.5px solid transparent">Spend &amp; ROI</a>
+  </nav>
   <div class="header">
     <h1>CEO Dashboard — Year &amp; Quarter Breakdown</h1>
     <p id="subtitle">Premier Path Properties · Loading live HubSpot data…</p>
@@ -81,7 +86,6 @@
     <button class="tab" onclick="show('2024')">2024</button>
     <button class="tab" onclick="show('2025')">2025</button>
     <button class="tab" onclick="show('2026')">2026 YTD</button>
-    <button class="tab" onclick="show('team')">Team</button>
   </div>
   <div id="content">
     <div class="loading">
@@ -508,12 +512,12 @@ function buildTeam(deals, owners) {
 
 // ── Tab switcher ─────────────────────────────────────────────────────────────
 function show(id) {
-  ['all','2024','2025','2026','team'].forEach(p => {
+  ['all','2024','2025','2026'].forEach(p => {
     const el = document.getElementById('pane-' + p);
     if (el) el.style.display = p === id ? '' : 'none';
   });
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['all','2024','2025','2026','team'][i] === id);
+    t.classList.toggle('active', ['all','2024','2025','2026'][i] === id);
   });
   updateFunnel(id);
 }
@@ -556,18 +560,15 @@ function render(deals, owners) {
   const allTime   = buildAllTime(won, lost, byYear);
   const yearBuilt = {};
   for (const yr of years) yearBuilt[yr] = buildYear(yr, byYear, active);
-  const teamBuilt = buildTeam(deals, owners);
 
   document.getElementById('content').innerHTML = `
     <div id="pane-all">${allTime.html}</div>
     ${years.map(yr => `<div id="pane-${yr}" style="display:none">${yearBuilt[yr].html}</div>`).join('')}
-    <div id="pane-team" style="display:none">${teamBuilt.html}</div>
   `;
 
   setTimeout(() => {
     allTime.charts();
     for (const yr of years) yearBuilt[yr].charts();
-    teamBuilt.charts();
   }, 0);
 
   document.getElementById('tab-bar').removeAttribute('style');
