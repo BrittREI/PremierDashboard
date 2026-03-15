@@ -46,8 +46,13 @@ export default async function handler(req, res) {
     // Stage IDs that represent terminal/dead states (not active, not closed-won)
     const CLOSED_LOST_STAGE_IDS = new Set(['196795054', '228334260', '1025346924']); // Abandoned, Invalid Lead, Not Responding
 
-    // 3. Shape deals
-    const deals = allDeals.map(d => ({
+    // Only include deals that belong to your real pipeline stages — filters out archived/legacy deals
+    const KNOWN_STAGE_IDS = new Set(['164063498', '164077216', '164077217', '164077218', '164077219', '196795054', '196916744', '228334260', '1025346924']);
+
+    // 3. Shape deals — filter to known stages only
+    const deals = allDeals
+      .filter(d => KNOWN_STAGE_IDS.has(d.properties.dealstage))
+      .map(d => ({
       id: d.id,
       name: (d.properties.dealname || 'Unnamed Deal').trim(),
       closedate: d.properties.closedate || null,
