@@ -44,41 +44,29 @@ export default async function handler(req, res) {
       after = (data.paging && data.paging.next && data.paging.next.after) ? data.paging.next.after : null;
     } while (after);
 
-    // Your real pipeline stage IDs — any deal with a stage not in this list is filtered out
-    const KNOWN_STAGE_IDS = new Set([
-      '164063498',  // New Deal
-      '164077216',  // Collecting Documents
-      '164077217',  // Ready to Fund
-      '164077218',  // In Escrow
-      '164077219',  // Closed
-      '196795054',  // Abandoned
-      '196916744',  // Delayed
-      '228334260',  // Invalid Lead
-      '1025346924', // Not Responding
-    ]);
-
     // Stages that count as closed-lost (not active, not closed-won)
     const CLOSED_LOST_STAGE_IDS = new Set(['196795054', '228334260', '1025346924']);
 
-    // 3. Filter to known stages only, then shape
-    const deals = allDeals
-      .filter(function(d) { return KNOWN_STAGE_IDS.has(d.properties.dealstage); })
-      .map(function(d) {
-        return {
-          id: d.id,
-          name: (d.properties.dealname || 'Unnamed Deal').trim(),
-          closedate: d.properties.closedate || null,
-          createdate: d.properties.createdate || null,
-          stage: stageMap[d.properties.dealstage] || d.properties.dealstage || 'Unknown',
-          isClosedWon: d.properties.hs_is_closed_won === 'true',
-          isClosedLost: CLOSED_LOST_STAGE_IDS.has(d.properties.dealstage),
-          fee: parseFloat(d.properties.amount) || 0,
-          buyerPrice: parseFloat(d.properties.assigned_amount) || 0,
-          listPrice: parseFloat(d.properties.dispo_amount) || 0,
-          contactIds: (d.associations && d.associations.contacts && d.associations.contacts.results
-            ? d.associations.contacts.results : []).map(function(c) { return c.id; }),
-        };
-      });
+    // Debug: capture unique stage IDs seen in raw results
+    const stageIdsSeen = [...new Set(allDeals.map(function(d) { return d.properties.dealstage; }))];
+
+    // 3. Shape all deals (no stage filter — let frontend handle display filtering)
+    const deals = allDeals.map(function(d) {
+      return {
+        id: d.id,
+        name: (d.properties.dealname || 'Unnamed Deal').trim(),
+        closedate: d.properties.closedate || null,
+        createdate: d.properties.createdate || null,
+        stage: stageMap[d.properties.dealstage] || d.properties.dealstage || 'Unknown',
+        isClosedWon: d.properties.hs_is_closed_won === 'true',
+        isClosedLost: CLOSED_LOST_STAGE_IDS.has(d.properties.dealstage),
+        fee: parseFloat(d.properties.amount) || 0,
+        buyerPrice: parseFloat(d.properties.assigned_amount) || 0,
+        listPrice: parseFloat(d.properties.dispo_amount) || 0,
+        contactIds: (d.associations && d.associations.contacts && d.associations.contacts.results
+          ? d.associations.contacts.results : []).map(function(c) { return c.id; }),
+      };
+    });
 
     // 4. Helper: get gross leads for a date range
     async function getGrossLeads(afterDate, beforeDate) {
@@ -169,6 +157,7 @@ export default async function handler(req, res) {
       deals: deals,
       total: deals.length,
       fetchedAt: new Date().toISOString(),
+      debug: { stageIdsSeen: stageIdsSeen, allDealsCount: allDeals.length },
       funnel: {
         all:  { grossLeads: grossAll,  ...funnelAll  },
         2024: { grossLeads: gross2024, ...funnel2024 },
