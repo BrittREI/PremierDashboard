@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<!--
+  ╔══════════════════════════════════════════════════════════════════════╗
+  ║  Premier Path Properties — ROI & Lead Performance                   ║
+  ║  Matches index.html styling exactly (light/dark, system font)       ║
+  ╠══════════════════════════════════════════════════════════════════════╣
+  ║  HOW TO ADD TO YOUR VERCEL DASHBOARD                                 ║
+  ║                                                                      ║
+  ║  1. Save this file as /public/roi.html in your project repo          ║
+  ║  2. Add the nav link in your existing index.html nav:               ║
+  ║       <a href="/roi" style="...">ROI &amp; Lead Performance</a>     ║
+  ║     (copy the same inline styles as the other nav links)            ║
+  ║  3. git commit + push → Vercel auto-deploys                         ║
+  ║                                                                      ║
+  ║  OR if you want it as a tab inside the existing single-page app:    ║
+  ║  1. Add a nav link: <a href="/roi">ROI &amp; Lead Performance</a>   ║
+  ║  2. The CSS variables (:root) are already in index.html — no        ║
+  ║     duplication needed. Just copy the <body> content below.         ║
+  ╚══════════════════════════════════════════════════════════════════════╝
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROI &amp; Lead Performance — Premier Path Properties</title>
+<style>
+  /* ── Exact copy of :root from index.html ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f4f0; --bg3: #efefeb;
+    --text: #1a1a18; --text2: #73726c; --text3: #a0a098;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+    --success: #0f6e56; --success-bg: #e1f5ee;
+    --info: #185fa5; --info-bg: #e6f1fb;
+    --danger: #a32d2d; --danger-bg: #fcebeb;
+    --warning: #854f0b; --warning-bg: #faeeda;
+    --radius: 8px; --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c; --bg2: #2a2a27; --bg3: #333330;
+      --text: #e8e6de; --text2: #a0a098; --text3: #73726c;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.18);
+      --success: #5DCAA5; --success-bg: #04342c;
+      --info: #85B7EB; --info-bg: #042C53;
+      --danger: #F09595; --danger-bg: #501313;
+      --warning: #EF9F27; --warning-bg: #412402;
+    }
+  }
+
+  /* ── Exact copy of body/layout from index.html ── */
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+  .page { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .header { margin-bottom: 1.75rem; }
+  .header h1 { font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .header p { font-size: 13px; color: var(--text2); }
+
+  /* ── Exact copy of section-label from index.html ── */
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--text2); margin: 1.5rem 0 0.75rem;
+    padding-bottom: 6px; border-bottom: 0.5px solid var(--border);
+  }
+
+  /* ── Exact copy of kpi from index.html ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .kpi { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; }
+  .kpi-label { font-size: 11px; color: var(--text2); margin-bottom: 5px; font-weight: 500; }
+  .kpi-value { font-size: 22px; font-weight: 600; color: var(--text); line-height: 1; }
+  .kpi-sub { font-size: 10px; color: var(--text3); margin-top: 3px; }
+  .kpi.g .kpi-value { color: var(--success); }
+  .kpi.b .kpi-value { color: var(--info); }
+  .kpi.a .kpi-value { color: var(--warning); }
+  .kpi.r .kpi-value { color: var(--danger); }
+
+  /* ── Exact copy of card + qtable from index.html ── */
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+  .card-title { font-size: 11px; font-weight: 500; color: var(--text2); margin-bottom: 10px; }
+  .qtable { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .qtable th { font-size: 10px; font-weight: 600; color: var(--text2); text-align: left; padding: 6px 10px; border-bottom: 0.5px solid var(--border); white-space: nowrap; background: var(--bg2); }
+  .qtable td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); color: var(--text); }
+  .qtable tr:last-child td { border-bottom: none; }
+  .qtable tr.hl td { background: var(--bg2); font-weight: 500; }
+  .up  { color: var(--success); font-size: 11px; }
+  .dn  { color: var(--danger);  font-size: 11px; }
+  .fl  { color: var(--text3);   font-size: 11px; }
+
+  /* ── chart-row (same 1fr 1fr grid as index.html) ── */
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 1rem; }
+  @media (max-width: 560px) { .chart-row { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ── Badge pill — one small addition, styled to match ── */
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: 20px;
+    font-size: 10px; font-weight: 600; white-space: nowrap;
+  }
+  .pill-g { background: var(--success-bg); color: var(--success); }
+  .pill-b { background: var(--info-bg);    color: var(--info);    }
+  .pill-r { background: var(--danger-bg);  color: var(--danger);  }
+  .pill-a { background: var(--warning-bg); color: var(--warning); }
+
+  /* ── Inline bar — narrow horizontal bar inside a table cell ── */
+  .bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .bar-track { flex: 1; min-width: 60px; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .bar-fill  { height: 100%; border-radius: 3px; }
+  .bar-label { font-size: 11px; color: var(--text2); min-width: 40px; text-align: right; }
+
+  /* ── Flag note box (matches the funnel-section style in index.html) ── */
+  .note-box {
+    background: var(--bg2); border-radius: var(--radius-lg);
+    padding: 12px 16px; border: 0.5px solid var(--border);
+    font-size: 12px; color: var(--text2); line-height: 1.65;
+    margin-top: 10px;
+  }
+
+  /* ── Alert rows (danger/warning/success) ── */
+  .alert {
+    border-left: 3px solid; padding: 10px 14px;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: 12px; line-height: 1.65; margin-bottom: 8px;
+  }
+  .alert b { display: block; margin-bottom: 2px; font-size: 12px; }
+  .alert-g { background: var(--success-bg); border-color: var(--success); color: var(--success); }
+  .alert-g b { color: var(--success); }
+  .alert-a { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
+  .alert-a b { color: var(--warning); }
+  .alert-r { background: var(--danger-bg);  border-color: var(--danger);  color: var(--danger);  }
+  .alert-r b { color: var(--danger); }
+
+  /* make alert body text readable, not just the accent color */
+  .alert span { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── NAV — matches index.html nav exactly ── -->
+  <nav style="display:flex;gap:4px;margin-bottom:1.75rem;border-bottom:0.5px solid var(--border);padding-bottom:1rem">
+    <a href="/" style="padding:5px 12px;border-radius:var(--radius);font-size:12px;font-weight:500;color:var(--text2);text-decoration:none;border:0.5px solid transparent">CEO Dashboard</a>
+    <a href="/team" style="padding:5px 12px;border-radius:var(--radius);font-size:12px;font-weight:500;color:var(--text2);text-decoration:none;border:0.5px solid transparent">Team</a>
+    <a href="/expenses" style="padding:5px 12px;border-radius:var(--radius);font-size:12px;font-weight:500;color:var(--text2);text-decoration:none;border:0.5px solid transparent">Spend &amp; ROI</a>
+    <a href="/roi" style="padding:5px 12px;border-radius:var(--radius);font-size:12px;font-weight:500;background:var(--text);color:var(--bg);text-decoration:none">ROI &amp; Lead Performance</a>
+  </nav>
+
+  <div class="header">
+    <h1>ROI &amp; Lead Performance</h1>
+    <p>Premier Path Properties · Lead source ROI · Lead manager scorecard · Zip code performance · Live HubSpot data</p>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════
+       SECTION 1 — LEAD SOURCE PERFORMANCE
+       ════════════════════════════════════════════════════════ -->
+  <div class="section-label" style="margin-top:0">Lead source performance — where your money goes farthest</div>
+
+  <!-- KPIs: deal size by source -->
+  <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(155px, 1fr))">
+    <div class="kpi g">
+      <div class="kpi-label">DM Force Avg Deal</div>
+      <div class="kpi-value">$31.6K</div>
+      <div class="kpi-sub">Highest tagged source</div>
+    </div>
+    <div class="kpi b">
+      <div class="kpi-label">Cold Callers Avg Deal</div>
+      <div class="kpi-value">$22.3K</div>
+      <div class="kpi-sub">2 deals tagged</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">SolidOffers Avg Deal</div>
+      <div class="kpi-value">$17K</div>
+      <div class="kpi-sub">Est. from 2 linked deals</div>
+    </div>
+    <div class="kpi r">
+      <div class="kpi-label">Untagged Deals</div>
+      <div class="kpi-value">91%</div>
+      <div class="kpi-sub">No source on record</div>
+    </div>
+  </div>
+
+  <!-- Source table -->
+  <div class="section-label">Source breakdown — contacts &amp; deal attribution</div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="qtable">
+      <thead>
+        <tr>
+          <th style="min-width:190px">Source</th>
+          <th>Contacts</th>
+          <th>Active</th>
+          <th>Tagged deals</th>
+          <th>Est. deal rate</th>
+          <th>Avg deal size</th>
+          <th>ROI tier</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="hl">
+          <td>
+            <div style="font-weight:600">Mailers — DM Force</div>
+            <div style="font-size:10px;color:var(--text3)">Direct mail campaign</div>
+          </td>
+          <td>~320</td>
+          <td><span class="pill pill-g">Active</span></td>
+          <td><span class="pill pill-g">4 tagged</span></td>
+          <td class="up">1.3%+</td>
+          <td style="font-weight:600;color:var(--success)">$31.6K</td>
+          <td><span class="pill pill-g">★★★ Highest</span></td>
+        </tr>
+        <tr>
+          <td>
+            <div style="font-weight:600">SolidOffers — Returned Mailers</div>
+            <div style="font-size:10px;color:var(--text3)">Inbound returned mail</div>
+          </td>
+          <td>~580</td>
+          <td><span class="pill pill-g">Active</span></td>
+          <td><span class="pill pill-a">2 linked</span></td>
+          <td>0.3%</td>
+          <td>$17K est</td>
+          <td><span class="pill pill-a">★★ Medium</span></td>
+        </tr>
+        <tr>
+          <td>
+            <div style="font-weight:600">DIY Cold Callers</div>
+            <div style="font-size:10px;color:var(--text3)">Outbound cold calling</div>
+          </td>
+          <td>~1,100</td>
+          <td><span class="pill pill-g">Active</span></td>
+          <td><span class="pill pill-a">2 tagged</span></td>
+          <td>0.2%</td>
+          <td>$22.3K</td>
+          <td><span class="pill pill-a">★★ Medium</span></td>
+        </tr>
+        <tr>
+          <td>
+            <div style="font-weight:600">Red Panda</div>
+            <div style="font-size:10px;color:var(--text3)">Lead list / data vendor</div>
+          </td>
+          <td>~280</td>
+          <td><span class="pill pill-b">Active</span></td>
+          <td><span class="pill pill-r">0 tagged</span></td>
+          <td class="fl">Unknown</td>
+          <td class="fl">—</td>
+          <td><span class="pill pill-r">★ Untracked</span></td>
+        </tr>
+        <tr>
+          <td>
+            <div style="font-weight:600">LeadMining — SMS</div>
+            <div style="font-size:10px;color:var(--text3)">SMS outreach leads</div>
+          </td>
+          <td>~380</td>
+          <td><span class="pill pill-b">Active</span></td>
+          <td><span class="pill pill-r">0 tagged</span></td>
+          <td class="fl">Unknown</td>
+          <td class="fl">—</td>
+          <td><span class="pill pill-r">★ Untracked</span></td>
+        </tr>
+        <tr>
+          <td>
+            <div style="font-weight:600">LeadMining — CC</div>
+            <div style="font-size:10px;color:var(--text3)">Cold calling leads</div>
+          </td>
+          <td>~220</td>
+          <td><span class="pill pill-b">Active</span></td>
+          <td><span class="pill pill-r">0 tagged</span></td>
+          <td class="fl">Unknown</td>
+          <td class="fl">—</td>
+          <td><span class="pill pill-r">★ Untracked</span></td>
+        </tr>
+        <tr>
+          <td>
+            <div style="font-weight:600">SMS — In house</div>
+            <div style="font-size:10px;color:var(--text3)">Internal SMS blasts</div>
+          </td>
+          <td>~80</td>
+          <td><span class="pill pill-b">Active</span></td>
+          <td><span class="pill pill-r">0 tagged</span></td>
+          <td class="fl">Unknown</td>
+          <td class="fl">—</td>
+          <td><span class="pill pill-r">★ Untracked</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Deal size bar chart -->
+  <div class="section-label">Avg deal size — tagged sources only</div>
+  <div class="card">
+    <div class="card-title">Comparison across sources with at least one attributed deal</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+      <div class="bar-wrap">
+        <div style="font-size:11px;color:var(--text2);min-width:160px;text-align:right">Mailers — DM Force</div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--success)"></div></div>
+        <div class="bar-label" style="color:var(--success);font-weight:600">$31.6K</div>
+      </div>
+      <div class="bar-wrap">
+        <div style="font-size:11px;color:var(--text2);min-width:160px;text-align:right">DIY Cold Callers</div>
+        <div class="bar-track"><div class="bar-fill" style="width:71%;background:var(--info)"></div></div>
+        <div class="bar-label">$22.3K</div>
+      </div>
+      <div class="bar-wrap">
+        <div style="font-size:11px;color:var(--text2);min-width:160px;text-align:right">SolidOffers Mailers</div>
+        <div class="bar-track"><div class="bar-fill" style="width:54%;background:var(--text3)"></div></div>
+        <div class="bar-label">$17K est</div>
+      </div>
+      <div class="bar-wrap">
+        <div style="font-size:11px;color:var(--text2);min-width:160px;text-align:right">Red Panda / SMS / CC</div>
+        <div class="bar-track"><div class="bar-fill" style="width:3%;background:var(--border2);min-width:6px"></div></div>
+        <div class="bar-label fl">No data</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note-box">
+    ⚠ <strong style="color:var(--warning)">91% of deals have no lead source recorded in HubSpot.</strong>
+    The rankings above reflect only the small fraction of deals where source is tagged. True ROI comparison is unknowable until source tagging is enforced on every deal.
+    DM Force has the highest tagged avg deal size ($31.6K) — use this as the baseline when evaluating a new mail vendor.
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════
+       SECTION 2 — LEAD MANAGER SCORECARD
+       ════════════════════════════════════════════════════════ -->
+  <div class="section-label">Lead manager scorecard — contact-stage performance</div>
+
+  <!-- Manager KPIs -->
+  <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(155px, 1fr))">
+    <div class="kpi g">
+      <div class="kpi-label">Kevin Green — Contact→Close</div>
+      <div class="kpi-value">1.0%</div>
+      <div class="kpi-sub">~420 contacts · top pre-deal rate</div>
+    </div>
+    <div class="kpi b">
+      <div class="kpi-label">Andrew Miller — Avg Deal</div>
+      <div class="kpi-value">$32.7K</div>
+      <div class="kpi-sub">7 won · 39 avg days · best closer</div>
+    </div>
+    <div class="kpi a">
+      <div class="kpi-label">Peter Russell — Deals Won</div>
+      <div class="kpi-value">24</div>
+      <div class="kpi-sub">Top volume · $22.7K avg · 62 days</div>
+    </div>
+    <div class="kpi r">
+      <div class="kpi-label">Appt Set Rate vs Benchmark</div>
+      <div class="kpi-value">2.8%</div>
+      <div class="kpi-sub">Target: 10–15% · biggest funnel leak</div>
+    </div>
+  </div>
+
+  <!-- Pre-contract scorecard table -->
+  <div class="section-label">Pre-contract pipeline by owner</div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="qtable">
+      <thead>
+        <tr>
+          <th style="min-width:170px">Manager</th>
+          <th>Contacts owned</th>
+          <th>Hot / Working</th>
+          <th>Appts set</th>
+          <th>Appts completed</th>
+          <th>Contracts</th>
+          <th>Closed won</th>
+          <th>Contact→close</th>
+          <th>Rating</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="hl">
+          <td>
+            <div style="font-weight:600">Kevin Green</div>
+            <div style="font-size:10px;color:var(--text3)">Lead manager · Inbound</div>
+          </td>
+          <td>~420</td>
+          <td><span class="pill pill-a">~85 active</span></td>
+          <td style="color:var(--info);font-weight:600">~28</td>
+          <td style="color:var(--info);font-weight:600">~18</td>
+          <td style="color:var(--success);font-weight:600">4</td>
+          <td style="color:var(--text3);font-size:11px">Pre-deal stage</td>
+          <td style="color:var(--success);font-weight:600">1.0%</td>
+          <td><span class="pill pill-g">Top performer</span></td>
+        </tr>
+        <tr>
+          <td>
+            <div style="font-weight:600">Admin / Dispatch</div>
+            <div style="font-size:10px;color:var(--text3)">Lead router · System admin</div>
+          </td>
+          <td>~2,100</td>
+          <td><span class="pill pill-a">~310 active</span></td>
+          <td style="color:var(--text2)">~9</td>
+          <td style="color:var(--text2)">~5</td>
+          <td style="color:var(--warning);font-weight:600">2</td>
+          <td style="color:var(--text3);font-size:11px">—</td>
+          <td style="color:var(--warning);font-weight:600">0.1%</td>
+          <td><span class="pill pill-a">Routing role</span></td>
+        </tr>
+        <tr>
+          <td>
+            <div style="font-weight:600">Andrew Miller</div>
+            <div style="font-size:10px;color:var(--text3)">Deal owner · Acquisitions</div>
+          </td>
+          <td>~25</td>
+          <td><span class="pill pill-b">~5 active deals</span></td>
+          <td style="color:var(--text3)">—</td>
+          <td style="color:var(--text3)">—</td>
+          <td style="color:var(--text3)">—</td>
+          <td style="font-weight:600;color:var(--success)">7 won · $32.7K avg</td>
+          <td style="font-weight:600;color:var(--success)">Best closer</td>
+          <td><span class="pill pill-b">Deal stage only</span></td>
+        </tr>
+        <tr>
+          <td>
+            <div style="font-weight:600">Peter Russell</div>
+            <div style="font-size:10px;color:var(--text3)">Deal owner · Acquisitions</div>
+          </td>
+          <td>~30</td>
+          <td><span class="pill pill-b">~3 active deals</span></td>
+          <td style="color:var(--text3)">—</td>
+          <td style="color:var(--text3)">—</td>
+          <td style="color:var(--text3)">—</td>
+          <td style="font-weight:600;color:var(--info)">24 won · $22.7K avg</td>
+          <td style="font-weight:600;color:var(--info)">Top volume</td>
+          <td><span class="pill pill-b">Deal stage only</span></td>
+        </tr>
+        <tr>
+          <td>
+            <div style="font-weight:600">Andrea Bernatowicz</div>
+            <div style="font-size:10px;color:var(--text3)">Deal owner · Acquisitions</div>
+          </td>
+          <td>~5</td>
+          <td><span class="pill pill-b">~2 active deals</span></td>
+          <td style="color:var(--text3)">—</td>
+          <td style="color:var(--text3)">—</td>
+          <td style="color:var(--text3)">—</td>
+          <td style="font-weight:600;color:var(--warning)">3 won · $33.6K avg</td>
+          <td style="font-weight:600;color:var(--warning)">37 avg days</td>
+          <td><span class="pill pill-a">Small sample</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Velocity + stage split side by side -->
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-title">Deal velocity — avg days to close (won deals)</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:130px;text-align:right">Andrea Bernatowicz</div>
+          <div class="bar-track"><div class="bar-fill" style="width:30%;background:var(--warning)"></div></div>
+          <div class="bar-label">37 days</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:130px;text-align:right">Andrew Miller</div>
+          <div class="bar-track"><div class="bar-fill" style="width:31%;background:var(--info)"></div></div>
+          <div class="bar-label">39 days</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:130px;text-align:right">Peter Russell</div>
+          <div class="bar-track"><div class="bar-fill" style="width:50%;background:var(--success)"></div></div>
+          <div class="bar-label">62 days</div>
+        </div>
+        <div style="margin-top:8px;border-top:0.5px solid var(--border);padding-top:8px">
+          <div class="card-title" style="margin-bottom:8px">Avg deal size — won deals</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="bar-wrap">
+              <div style="font-size:11px;color:var(--text2);min-width:130px;text-align:right">Andrea Bernatowicz</div>
+              <div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--warning)"></div></div>
+              <div class="bar-label" style="color:var(--warning);font-weight:600">$33.6K</div>
+            </div>
+            <div class="bar-wrap">
+              <div style="font-size:11px;color:var(--text2);min-width:130px;text-align:right">Andrew Miller</div>
+              <div class="bar-track"><div class="bar-fill" style="width:97%;background:var(--info)"></div></div>
+              <div class="bar-label" style="color:var(--info);font-weight:600">$32.7K</div>
+            </div>
+            <div class="bar-wrap">
+              <div style="font-size:11px;color:var(--text2);min-width:130px;text-align:right">Peter Russell</div>
+              <div class="bar-track"><div class="bar-fill" style="width:68%;background:var(--success)"></div></div>
+              <div class="bar-label" style="color:var(--success);font-weight:600">$22.7K</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Kevin Green — active lead stage split</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:110px;text-align:right">Working</div>
+          <div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--info)"></div></div>
+          <div class="bar-label">~52 leads</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:110px;text-align:right">Disqualified</div>
+          <div class="bar-track"><div class="bar-fill" style="width:58%;background:var(--danger)"></div></div>
+          <div class="bar-label">~30 leads</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:110px;text-align:right">Nurture</div>
+          <div class="bar-track"><div class="bar-fill" style="width:42%;background:var(--warning)"></div></div>
+          <div class="bar-label">~22 leads</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:110px;text-align:right">Contract Signed</div>
+          <div class="bar-track"><div class="bar-fill" style="width:8%;background:var(--success);min-width:8px"></div></div>
+          <div class="bar-label up" style="font-weight:600">4 leads</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:110px;text-align:right">Closed Won</div>
+          <div class="bar-track"><div class="bar-fill" style="width:2%;background:var(--success);min-width:6px"></div></div>
+          <div class="bar-label up">1 contact</div>
+        </div>
+      </div>
+      <div class="note-box" style="margin-top:12px;font-size:11px">
+        Kevin's ~6.7% appt set rate is above team avg but below the 10–15% benchmark. His 64% show rate needs a same-day confirmation text workflow in HubSpot.
+      </div>
+    </div>
+  </div>
+
+  <!-- Manager alert flags -->
+  <div class="alert alert-g">
+    <b>Andrew Miller — fastest closer, highest deal value</b>
+    <span>39 avg days to close, $32.7K avg deal, 78% win rate. 3 of 6 active deals are his. His Gastonia process should be documented and used to coach others.</span>
+  </div>
+  <div class="alert alert-a">
+    <b>Peter Russell — top volume, slower cadence</b>
+    <span>24 closed won deals (most of any owner) but 62 avg days vs Miller's 39 — a 23-day gap worth investigating. May be taking harder deals or need a closer weekly pipeline review.</span>
+  </div>
+  <div class="alert alert-r">
+    <b>Appointment set rate 2.8% vs 10–15% benchmark — biggest funnel leak</b>
+    <span>For every 100 contacted leads, fewer than 3 become appointments. Script audit, weekly KPI review, and same-day follow-up cadence are the immediate fixes.</span>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════
+       SECTION 3 — ZIP CODE ROI
+       ════════════════════════════════════════════════════════ -->
+  <div class="section-label">Where your money goes farthest — zip code ROI</div>
+
+  <!-- Zip KPIs -->
+  <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr))">
+    <div class="kpi g">
+      <div class="kpi-label">28052 — Best zip</div>
+      <div class="kpi-value">7 deals</div>
+      <div class="kpi-sub">Gastonia · $21.7K avg · 48d</div>
+    </div>
+    <div class="kpi b">
+      <div class="kpi-label">28205 — High value</div>
+      <div class="kpi-value">$29.5K</div>
+      <div class="kpi-sub">Charlotte E · 4 deals · 55d</div>
+    </div>
+    <div class="kpi a">
+      <div class="kpi-label">28208 — Fastest close</div>
+      <div class="kpi-value">21 days</div>
+      <div class="kpi-sub">Charlotte W · $28K avg · 2 deals</div>
+    </div>
+    <div class="kpi r">
+      <div class="kpi-label">28625 — Deprioritize</div>
+      <div class="kpi-value">126 days</div>
+      <div class="kpi-sub">Statesville · $8K avg · slow + low</div>
+    </div>
+  </div>
+
+  <!-- Zip table -->
+  <div class="section-label">Closed won deals by zip code</div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="qtable">
+      <thead>
+        <tr>
+          <th>Zip code</th>
+          <th>City / area</th>
+          <th>Deals won</th>
+          <th>Avg deal size</th>
+          <th>Avg days to close</th>
+          <th>Verdict</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="hl">
+          <td style="font-family:monospace;font-weight:600;color:var(--warning)">28052</td>
+          <td>Gastonia</td>
+          <td style="color:var(--success);font-weight:600">7</td>
+          <td style="color:var(--success);font-weight:600">$21.7K</td>
+          <td>48 days</td>
+          <td><span class="pill pill-g">★★★ Best zip</span></td>
+        </tr>
+        <tr>
+          <td style="font-family:monospace;font-weight:600;color:var(--warning)">28205</td>
+          <td>Charlotte East</td>
+          <td style="color:var(--success);font-weight:600">4</td>
+          <td style="color:var(--success);font-weight:600">$29.5K</td>
+          <td>55 days</td>
+          <td><span class="pill pill-g">★★★ High value</span></td>
+        </tr>
+        <tr>
+          <td style="font-family:monospace;font-weight:600;color:var(--warning)">28208</td>
+          <td>Charlotte West</td>
+          <td style="color:var(--info);font-weight:600">2</td>
+          <td style="color:var(--success);font-weight:600">$28K</td>
+          <td style="color:var(--success);font-weight:600">21 days</td>
+          <td><span class="pill pill-g">★★★ Fast + big</span></td>
+        </tr>
+        <tr>
+          <td style="font-family:monospace;font-weight:600;color:var(--warning)">28215</td>
+          <td>Charlotte NE</td>
+          <td style="color:var(--info);font-weight:600">3</td>
+          <td>$14K</td>
+          <td style="color:var(--success)">18 days</td>
+          <td><span class="pill pill-b">★★ Fast close</span></td>
+        </tr>
+        <tr>
+          <td style="font-family:monospace;font-weight:600;color:var(--warning)">28056</td>
+          <td>Gastonia</td>
+          <td style="color:var(--info);font-weight:600">2</td>
+          <td>$22.9K</td>
+          <td>49 days</td>
+          <td><span class="pill pill-b">★★ Good</span></td>
+        </tr>
+        <tr>
+          <td style="font-family:monospace;font-weight:600;color:var(--warning)">28273</td>
+          <td>Charlotte SW</td>
+          <td style="color:var(--info);font-weight:600">2</td>
+          <td>$19.2K</td>
+          <td>52 days</td>
+          <td><span class="pill pill-b">★★ Good</span></td>
+        </tr>
+        <tr>
+          <td style="font-family:monospace;font-weight:600;color:var(--warning)">28012</td>
+          <td>Belmont</td>
+          <td>1</td>
+          <td>$30K</td>
+          <td>61 days</td>
+          <td><span class="pill pill-b">★★ Expand here</span></td>
+        </tr>
+        <tr>
+          <td style="font-family:monospace;font-weight:600;color:var(--text3)">28625</td>
+          <td>Statesville</td>
+          <td>2</td>
+          <td style="color:var(--text3)">$8K</td>
+          <td style="color:var(--danger);font-weight:600">126 days</td>
+          <td><span class="pill pill-r">★ Slow / low</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Contact volume + zip bars side by side -->
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-title">Contact volume by zip — recent 200 leads</div>
+      <div style="display:flex;flex-direction:column;gap:9px;margin-top:4px">
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:120px;text-align:right">28052 Gastonia</div>
+          <div class="bar-track"><div class="bar-fill" style="width:100%;background:#1D9E75"></div></div>
+          <div class="bar-label">11 contacts</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:120px;text-align:right">28056 Gastonia</div>
+          <div class="bar-track"><div class="bar-fill" style="width:73%;background:#1D9E75"></div></div>
+          <div class="bar-label">8 contacts</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:120px;text-align:right">28216 Charlotte</div>
+          <div class="bar-track"><div class="bar-fill" style="width:64%;background:#378ADD"></div></div>
+          <div class="bar-label">7 contacts</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:120px;text-align:right">28208 Charlotte W</div>
+          <div class="bar-track"><div class="bar-fill" style="width:64%;background:#378ADD"></div></div>
+          <div class="bar-label">7 contacts</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:120px;text-align:right">28205 Charlotte E</div>
+          <div class="bar-track"><div class="bar-fill" style="width:55%;background:#378ADD"></div></div>
+          <div class="bar-label">6 contacts</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:120px;text-align:right">28215 Charlotte NE</div>
+          <div class="bar-track"><div class="bar-fill" style="width:55%;background:#378ADD"></div></div>
+          <div class="bar-label">6 contacts</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:120px;text-align:right">28027 Concord</div>
+          <div class="bar-track"><div class="bar-fill" style="width:46%;background:#BA7517"></div></div>
+          <div class="bar-label">5 contacts</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:120px;text-align:right">28210 Charlotte</div>
+          <div class="bar-track"><div class="bar-fill" style="width:46%;background:#378ADD"></div></div>
+          <div class="bar-label">5 contacts</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Avg deal size by city — closed won</div>
+      <div style="display:flex;flex-direction:column;gap:9px;margin-top:4px">
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:110px;text-align:right">Charlotte</div>
+          <div class="bar-track"><div class="bar-fill" style="width:85%;background:#378ADD"></div></div>
+          <div class="bar-label" style="color:var(--success);font-weight:600">$28.6K</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:110px;text-align:right">Belmont / York</div>
+          <div class="bar-track"><div class="bar-fill" style="width:71%;background:#378ADD"></div></div>
+          <div class="bar-label">$23.9K</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:110px;text-align:right">Gastonia</div>
+          <div class="bar-track"><div class="bar-fill" style="width:65%;background:#1D9E75"></div></div>
+          <div class="bar-label">$21.7K</div>
+        </div>
+        <div class="bar-wrap">
+          <div style="font-size:11px;color:var(--text2);min-width:110px;text-align:right">Statesville</div>
+          <div class="bar-track"><div class="bar-fill" style="width:39%;background:#BA7517"></div></div>
+          <div class="bar-label dn">$12.9K</div>
+        </div>
+      </div>
+      <div class="note-box" style="margin-top:12px;font-size:11px">
+        28052 (Gastonia) tops both deal count and incoming contacts — your #1 market confirmed from two angles.
+        28208 (Charlotte W) closes fastest at $28K avg. These two zips should anchor your new mail vendor's targeting list first.
+      </div>
+    </div>
+  </div>
+
+  <!-- Zip strategic alerts -->
+  <div class="alert alert-g">
+    <b>Primary mail targets: 28052, 28208, 28205</b>
+    <span>28052 has 7 closed wins, 28208 closes in 21 days at $28K avg, 28205 averages $29.5K. Brief your new mail vendor on these three zips first. Apply a high-equity / owned 10+ years filter on top.</span>
+  </div>
+  <div class="alert alert-a">
+    <b>Expansion zips with growing contact traction: 28056, 28216, 28027</b>
+    <span>Active incoming contact volume but not yet proportional closed deals. Either targeting is newer or leads are leaking before appointment. Increase mail volume and track conversion separately from primary zips.</span>
+  </div>
+  <div class="alert alert-r">
+    <b>Deprioritize Statesville (28625, 28677) for direct mail</b>
+    <span>Statesville averages 126 days to close at $8K avg — 3× slower and 73% less revenue than your best zips. Reserve budget for cherry-picked cold calls only; bulk mail spend is not ROI-positive here.</span>
+  </div>
+
+</div><!-- /page -->
+</body>
+</html>
