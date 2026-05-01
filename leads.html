@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lead Management — Premier Path Properties</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f4f0; --bg3: #efefeb;
+    --text: #1a1a18; --text2: #73726c; --text3: #a0a098;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+    --success: #0f6e56; --success-bg: #e1f5ee;
+    --info: #185fa5; --info-bg: #e6f1fb;
+    --danger: #a32d2d; --danger-bg: #fcebeb;
+    --warning: #854f0b; --warning-bg: #faeeda;
+    --radius: 8px; --radius-lg: 12px;
+    --green: #16a34a; --red: #dc2626; --amber: #d97706; --blue: #2563eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c; --bg2: #2a2a27; --bg3: #333330;
+      --text: #e8e6de; --text2: #a0a098; --text3: #73726c;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.18);
+      --success: #5DCAA5; --success-bg: #04342c;
+      --info: #85B7EB; --info-bg: #042C53;
+      --danger: #F09595; --danger-bg: #501313;
+      --warning: #EF9F27; --warning-bg: #412402;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+  .page { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .header { margin-bottom: 1.5rem; }
+  .header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .header h1 { font-size: 20px; font-weight: 600; }
+  .header p { font-size: 13px; color: var(--text2); margin-top: 3px; }
+  .nav-link { font-size: 12px; color: var(--text2); text-decoration: none; border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 6px 12px; white-space: nowrap; }
+  .nav-link:hover { background: var(--bg2); }
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text2); margin: 1.75rem 0 0.75rem; padding-bottom: 6px; border-bottom: 0.5px solid var(--border); }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .kpi { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; }
+  .kpi-label { font-size: 11px; color: var(--text2); margin-bottom: 5px; font-weight: 500; }
+  .kpi-value { font-size: 24px; font-weight: 600; color: var(--text); line-height: 1; }
+  .kpi-sub { font-size: 10px; color: var(--text3); margin-top: 3px; }
+  .kpi.g .kpi-value { color: var(--success); }
+  .kpi.b .kpi-value { color: var(--info); }
+  .kpi.r .kpi-value { color: var(--danger); }
+  .kpi.a .kpi-value { color: var(--warning); }
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 1rem; }
+  .chart-row.wide { grid-template-columns: 2fr 1fr; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+  .card-title { font-size: 11px; font-weight: 500; color: var(--text2); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .chart-wrap { position: relative; width: 100%; }
+  .qtable { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .qtable th { font-size: 10px; font-weight: 600; color: var(--text2); text-align: left; padding: 6px 10px; border-bottom: 0.5px solid var(--border); white-space: nowrap; background: var(--bg2); }
+  .qtable th.r, .qtable td.r { text-align: right; }
+  .qtable td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); color: var(--text); }
+  .qtable tr:last-child td { border-bottom: none; }
+  .rate-bar-bg { background: var(--bg3); border-radius: 99px; height: 5px; width: 80px; display: inline-block; vertical-align: middle; margin-left: 6px; }
+  .rate-bar { height: 100%; border-radius: 99px; background: var(--success); }
+  .rate-bar.warn { background: var(--warning); }
+  .rate-bar.bad  { background: var(--danger); }
+  .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 99px; }
+  .badge.g { background: var(--success-bg); color: var(--success); }
+  .badge.r { background: var(--danger-bg);  color: var(--danger); }
+  .badge.a { background: var(--warning-bg); color: var(--warning); }
+  .note { font-size: 11px; color: var(--text3); background: var(--bg2); border-radius: var(--radius); padding: 8px 12px; margin-top: 8px; }
+  .loading { display: flex; align-items: center; justify-content: center; height: 50vh; flex-direction: column; gap: 12px; }
+  .spinner { width: 28px; height: 28px; border: 2.5px solid var(--border2); border-top-color: var(--text); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err { background: var(--danger-bg); border: 0.5px solid var(--danger); color: var(--danger); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; }
+  @media (max-width: 640px) {
+    .chart-row, .chart-row.wide { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <h1>Lead Management KPIs</h1>
+        <p id="subtitle">Premier Path Properties · Loading live GHL data…</p>
+      </div>
+      <a class="nav-link" href="/">← CEO Dashboard</a>
+    </div>
+  </div>
+
+  <div id="content">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p style="color:var(--text2);font-size:13px">Fetching call &amp; lead data from Go High Level…</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const pct = (n, d) => d ? Math.round((n / d) * 100) + '%' : '—';
+const fmt = n => (n ?? 0).toLocaleString();
+
+function rateClass(rate) {
+  if (rate >= 0.8) return 'g';
+  if (rate >= 0.6) return 'a';
+  return 'r';
+}
+
+function rateBarHtml(rate) {
+  const cls = rate >= 0.8 ? '' : rate >= 0.6 ? ' warn' : ' bad';
+  return `<span class="rate-bar-bg"><span class="rate-bar${cls}" style="width:${Math.round(rate*100)}%"></span></span>`;
+}
+
+function renderChannelMix(mix) {
+  const LABELS = {
+    TYPE_CALL:      'Calls',
+    TYPE_SMS:       'SMS',
+    TYPE_EMAIL:     'Email',
+    TYPE_FB_MESSENGER: 'Facebook',
+    TYPE_INSTAGRAM: 'Instagram',
+    TYPE_NO_SHOW:   'No Show',
+    TYPE_ACTIVITY:  'Activity',
+  };
+  const total = mix.reduce((s, x) => s + x.count, 0);
+  return mix.slice(0, 7).map(({ type, count }) => {
+    const label = LABELS[type] || type.replace('TYPE_', '').replace(/_/g, ' ');
+    const w = total ? Math.round((count / total) * 100) : 0;
+    return `<tr>
+      <td>${label}</td>
+      <td class="r">${fmt(count)}</td>
+      <td class="r" style="color:var(--text3)">${w}%</td>
+    </tr>`;
+  }).join('');
+}
+
+function render(data) {
+  const { calls, byUser, trend, bySource, channelMix, fetchedAt, window: win } = data;
+  const when = new Date(fetchedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  $('subtitle').textContent = `Premier Path Properties · GHL live data · ${fmt(win.conversations)} conversations (last ${win.days} days) · Updated ${when}`;
+
+  $('content').innerHTML = `
+    <!-- ── Call KPIs ── -->
+    <div class="section-label">Inbound Call Performance</div>
+    <div class="kpi-grid">
+      <div class="kpi b"><div class="kpi-label">Inbound Calls</div><div class="kpi-value">${fmt(calls.inbound)}</div><div class="kpi-sub">last 90 days</div></div>
+      <div class="kpi g"><div class="kpi-label">Answered</div><div class="kpi-value">${fmt(calls.answered)}</div><div class="kpi-sub">${pct(calls.answered, calls.inbound)} answer rate</div></div>
+      <div class="kpi r"><div class="kpi-label">Missed</div><div class="kpi-value">${fmt(calls.missed)}</div><div class="kpi-sub">includes voicemails</div></div>
+      <div class="kpi ${rateClass(calls.answerRate)}"><div class="kpi-label">Answer Rate</div><div class="kpi-value">${Math.round(calls.answerRate * 100)}%</div><div class="kpi-sub">inbound calls</div></div>
+      <div class="kpi"><div class="kpi-label">Outbound Calls</div><div class="kpi-value">${fmt(calls.outbound)}</div><div class="kpi-sub">last 90 days</div></div>
+      <div class="kpi"><div class="kpi-label">Total Calls</div><div class="kpi-value">${fmt(calls.total)}</div><div class="kpi-sub">in + out</div></div>
+    </div>
+    <p class="note">⚠ Talk time is not available via the GHL conversations API. To track call duration, enable call recording in GHL and use the Reporting → Calls section, or connect a GHL call analytics integration.</p>
+
+    <!-- ── 14-day trend + channel mix ── -->
+    <div class="section-label">Activity Breakdown</div>
+    <div class="chart-row wide">
+      <div class="card">
+        <div class="card-title">14-Day Inbound Call Trend</div>
+        <div class="chart-wrap" style="height:200px"><canvas id="trendChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Conversation Channel Mix</div>
+        <table class="qtable">
+          <thead><tr><th>Channel</th><th class="r">Count</th><th class="r">%</th></tr></thead>
+          <tbody>${renderChannelMix(channelMix)}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── By user ── -->
+    <div class="section-label">Calls by Rep</div>
+    <div class="card">
+      <table class="qtable">
+        <thead>
+          <tr>
+            <th>Rep</th>
+            <th class="r">Inbound</th>
+            <th class="r">Answered</th>
+            <th class="r">Missed</th>
+            <th class="r">Answer Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${byUser.length ? byUser.map(u => {
+            const rc = rateClass(u.answerRate);
+            return `<tr>
+              <td>${u.name}</td>
+              <td class="r">${fmt(u.inbound)}</td>
+              <td class="r">${fmt(u.answered)}</td>
+              <td class="r">${fmt(u.missed)}</td>
+              <td class="r">
+                <span class="badge ${rc}">${Math.round(u.answerRate * 100)}%</span>
+                ${rateBarHtml(u.answerRate)}
+              </td>
+            </tr>`;
+          }).join('') : `<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:20px">No inbound call data found in the last 90 days.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Source breakdown ── -->
+    <div class="section-label">New Leads by Source (Last 500 Contacts)</div>
+    <div class="chart-row">
+      <div class="card">
+        <div class="card-title">Contacts by Lead Source</div>
+        <div class="chart-wrap" style="height:220px"><canvas id="sourceChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Source Breakdown</div>
+        <table class="qtable">
+          <thead><tr><th>Source</th><th class="r">Contacts</th><th class="r">%</th></tr></thead>
+          <tbody>${(() => {
+            const total = bySource.reduce((s, x) => s + x.count, 0);
+            return bySource.map(({ source, count }) =>
+              `<tr><td>${source}</td><td class="r">${fmt(count)}</td><td class="r" style="color:var(--text3)">${pct(count, total)}</td></tr>`
+            ).join('');
+          })()}</tbody>
+        </table>
+        <p class="note" style="margin-top:10px">Based on GHL contact source field + tag classification for last 500 contacts.</p>
+      </div>
+    </div>
+  `;
+
+  // ── Trend chart ──────────────────────────────────────────────────────────
+  const trendCtx = document.getElementById('trendChart').getContext('2d');
+  const trendLabels = trend.map(d => {
+    const dt = new Date(d.date + 'T12:00:00');
+    return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  });
+  new Chart(trendCtx, {
+    type: 'bar',
+    data: {
+      labels: trendLabels,
+      datasets: [
+        {
+          label: 'Answered',
+          data: trend.map(d => d.inbound - d.missed),
+          backgroundColor: 'rgba(15,110,86,0.7)',
+          stack: 'calls',
+        },
+        {
+          label: 'Missed',
+          data: trend.map(d => d.missed),
+          backgroundColor: 'rgba(163,45,45,0.7)',
+          stack: 'calls',
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 10, boxWidth: 10 } } },
+      scales: {
+        x: { stacked: true, ticks: { font: { size: 9 }, maxRotation: 45 }, grid: { display: false } },
+        y: { stacked: true, ticks: { font: { size: 10 }, stepSize: 1 }, beginAtZero: true },
+      },
+    },
+  });
+
+  // ── Source donut ─────────────────────────────────────────────────────────
+  const COLORS = ['#185fa5','#0f6e56','#854f0b','#a32d2d','#5b21b6','#0369a1','#065f46','#9a3412','#1e40af','#6b7280'];
+  const srcCtx = document.getElementById('sourceChart').getContext('2d');
+  new Chart(srcCtx, {
+    type: 'doughnut',
+    data: {
+      labels: bySource.map(x => x.source),
+      datasets: [{ data: bySource.map(x => x.count), backgroundColor: COLORS.slice(0, bySource.length), borderWidth: 0 }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 8, boxWidth: 10 } },
+      },
+      cutout: '60%',
+    },
+  });
+}
+
+async function load() {
+  try {
+    const res = await fetch('/api/leads');
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    render(data);
+  } catch (err) {
+    $('content').innerHTML = `<div class="err">Failed to load: ${err.message}</div>`;
+  }
+}
+
+load();
+</script>
+</body>
+</html>

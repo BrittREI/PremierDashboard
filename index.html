@@ -72,13 +72,12 @@
 </head>
 <body>
 <div class="page">
-  <nav style="display:flex;gap:4px;margin-bottom:1.75rem;border-bottom:0.5px solid var(--border);padding-bottom:1rem">
-    <a href="/" style="padding:5px 12px;border-radius:var(--radius);font-size:12px;font-weight:500;background:var(--text);color:var(--bg);text-decoration:none">CEO Dashboard</a>
-    <a href="/team" style="padding:5px 12px;border-radius:var(--radius);font-size:12px;font-weight:500;color:var(--text2);text-decoration:none;border:0.5px solid transparent">Team</a>
-    <a href="/expenses" style="padding:5px 12px;border-radius:var(--radius);font-size:12px;font-weight:500;color:var(--text2);text-decoration:none;border:0.5px solid transparent">Spend &amp; ROI</a>
-    <a href="/roi" style="padding:5px 12px;border-radius:var(--radius);font-size:12px;font-weight:500;color:var(--text2);text-decoration:none;border:0.5px solid transparent">ROI &amp; Lead Performance</a>
-    <h1>CEO Dashboard — Year &amp; Quarter Breakdown</h1>
-    <p id="subtitle">Premier Path Properties · Loading live HubSpot data…</p>
+  <div class="header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+    <div>
+      <h1>CEO Dashboard — Year &amp; Quarter Breakdown</h1>
+      <p id="subtitle">Premier Path Properties · Loading live GHL data…</p>
+    </div>
+    <a href="/leads" style="font-size:12px;color:var(--text2);text-decoration:none;border:0.5px solid var(--border2);border-radius:8px;padding:6px 12px;white-space:nowrap">📞 Lead Management KPIs →</a>
   </div>
   <div class="tabs" id="tab-bar" style="pointer-events:none;opacity:0.4">
     <button class="tab active" onclick="show('all')">All Time</button>
@@ -89,7 +88,7 @@
   <div id="content">
     <div class="loading">
       <div class="spinner"></div>
-      <p style="color:var(--text2);font-size:13px">Fetching live data from HubSpot…</p>
+      <p style="color:var(--text2);font-size:13px">Fetching live data from Go High Level…</p>
     </div>
   </div>
 </div>
@@ -394,121 +393,6 @@ function buildYear(year, byYear, active) {
   };
 }
 
-// ── Team pane ────────────────────────────────────────────────────────────────
-function buildTeam(deals, owners) {
-  if (!owners || !Object.keys(owners).length) {
-    return { html: '<p style="color:var(--text3);font-size:13px;padding:1rem 0">No owner data available.</p>', charts: () => {} };
-  }
-
-  const now = new Date().getFullYear();
-  const yearRanges = {
-    2024: ['2024-01-01', '2025-01-01'],
-    2025: ['2025-01-01', '2026-01-01'],
-    2026: ['2026-01-01', null],
-  };
-
-  // Build per-owner stats
-  const stats = {};
-  Object.entries(owners).forEach(([id, name]) => {
-    stats[id] = { name, dealsCreated: 0, activePipeline: 0, activePipelineCount: 0, byYear: { 2024: 0, 2025: 0, 2026: 0 } };
-  });
-
-  deals.forEach(d => {
-    const s = stats[d.ownerId];
-    if (!s) return;
-    s.dealsCreated++;
-
-    // Active pipeline — deals not closed won or lost
-    if (!d.isClosedWon && !d.isClosedLost && d.fee > 0) {
-      s.activePipeline += d.fee;
-      s.activePipelineCount++;
-    }
-
-    // Deals created by year
-    if (d.createdate) {
-      const yr = new Date(d.createdate).getFullYear();
-      if (s.byYear[yr] !== undefined) s.byYear[yr]++;
-    }
-  });
-
-  const sorted = Object.values(stats).sort((a, b) => b.dealsCreated - a.dealsCreated);
-  const years = [2024, 2025, 2026];
-  const yLabels = ['2024', '2025', '2026 YTD'];
-
-  const tableRows = sorted.map(s => `
-    <tr>
-      <td style="font-weight:500">${s.name}</td>
-      <td>${s.dealsCreated}</td>
-      <td>${s.byYear[2024]}</td>
-      <td>${s.byYear[2025]}</td>
-      <td>${s.byYear[2026]}</td>
-      <td>${s.activePipelineCount}</td>
-      <td class="${s.activePipeline > 0 ? 'up' : 'fl'}" style="font-size:12px">${$F(s.activePipeline)}</td>
-    </tr>`).join('');
-
-  // Chart data
-  const ownerNames = sorted.map(s => s.name.split(' ')[0]); // first name for chart
-  const colors = ['#3B8BD4','#5DCAA5','#EF9F27','#F09595','#85B7EB','#9FE1CB','#B5D4F4','#5B9FE0'];
-
-  const dealsByYearDatasets = years.map((yr, i) => ({
-    label: yLabels[i],
-    data: sorted.map(s => s.byYear[yr]),
-    backgroundColor: colors[i % colors.length],
-    borderRadius: 4,
-    borderSkipped: false,
-  }));
-
-  const pipelineData = sorted.map(s => s.activePipeline);
-
-  return {
-    html: `
-      <div class="section-label" style="margin-top:0">Team Performance — Active Members</div>
-      <div class="card" style="padding:0;overflow:hidden;margin-bottom:1rem">
-        <table class="qtable">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Total Deals</th>
-              <th>2024</th>
-              <th>2025</th>
-              <th>2026 YTD</th>
-              <th>Active Deals</th>
-              <th>Pipeline Value</th>
-            </tr>
-          </thead>
-          <tbody>${tableRows}</tbody>
-        </table>
-      </div>
-      <div class="chart-row">
-        <div class="card">
-          <div class="card-title">Deals Created by Year</div>
-          <div class="chart-wrap" style="height:200px"><canvas id="chart-team-deals"></canvas></div>
-        </div>
-        <div class="card">
-          <div class="card-title">Active Pipeline Value ($)</div>
-          <div class="chart-wrap" style="height:200px"><canvas id="chart-team-pipeline"></canvas></div>
-        </div>
-      </div>`,
-    charts: () => {
-      mkChart('chart-team-deals', 'bar', {
-        labels: ownerNames,
-        datasets: dealsByYearDatasets,
-      }, {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: true, labels: { color: tickColor, font: { size: 11 }, boxWidth: 10, padding: 8 } } },
-        scales: {
-          x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11 } } },
-          y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11 } } },
-        }
-      });
-      mkChart('chart-team-pipeline', 'bar', {
-        labels: ownerNames,
-        datasets: [{ data: pipelineData, backgroundColor: colors, borderRadius: 4, borderSkipped: false }],
-      }, xOpts(true));
-    }
-  };
-}
-
 // ── Tab switcher ─────────────────────────────────────────────────────────────
 function show(id) {
   ['all','2024','2025','2026'].forEach(p => {
@@ -551,12 +435,12 @@ function updateFunnel(tabId) {
 }
 
 // ── Main render ──────────────────────────────────────────────────────────────
-function render(deals, owners) {
+function render(deals) {
   destroyCharts();
   const { won, lost, active, byYear } = processDeals(deals);
   const years = [2024, 2025, 2026];
 
-  const allTime   = buildAllTime(won, lost, byYear);
+  const allTime  = buildAllTime(won, lost, byYear);
   const yearBuilt = {};
   for (const yr of years) yearBuilt[yr] = buildYear(yr, byYear, active);
 
@@ -640,14 +524,13 @@ async function init() {
     const data = await res.json();
     const { deals, fetchedAt, total } = data;
     const funnel = data.funnel || null;
-    const owners = data.owners || {};
 
     // Store globally for tab switching
     window._allDeals = deals;
     window._funnelData = funnel || {};
 
     // Render main dashboard
-    render(deals, owners);
+    render(deals);
 
     // Inject funnel metrics above the tab panes
     const won = deals.filter(d => d.isClosedWon);
@@ -663,7 +546,7 @@ async function init() {
 
     const when = new Date(fetchedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     document.getElementById('subtitle').textContent =
-      `Premier Path Properties · HubSpot live data · ${total} deals · Updated ${when}`;
+      `Premier Path Properties · GHL live data · ${total} deals · Updated ${when}`;
   } catch (e) {
     document.getElementById('content').innerHTML = `
       <div class="loading">
