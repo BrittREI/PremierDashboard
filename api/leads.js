@@ -13,29 +13,37 @@ function ghlHeaders(apiKey) {
   };
 }
 
-/** Fetch conversations via /conversations/search, paginating up to maxPages */
+async function ghlFetch(url, h) {
+  const resp = await fetch(url, { headers: h });
+  const text = await resp.text();
+  let json;
+  try { json = JSON.parse(text); } catch (_) { json = { _raw: text }; }
+  return { status: resp.status, ok: resp.ok, json };
+}
+
+/** Fetch conversations, exposing errors in return value */
 async function fetchConversations(locationId, h, maxPages = 15) {
   let all = [];
   let lastId = null;
+  const errors = [];
   const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
 
   for (let page = 0; page < maxPages; page++) {
     let url = `${BASE}/conversations/search?locationId=${locationId}&limit=20`;
     if (lastId) url += `&lastId=${lastId}`;
 
-    const resp = await fetch(url, { headers: h });
-    if (!resp.ok) {
-      console.error('[leads] conversations/search error', resp.status, await resp.text().catch(() => ''));
+    const { status, ok, json } = await ghlFetch(url, h);
+
+    if (!ok) {
+      errors.push({ url, status, body: json });
       break;
     }
 
-    const data = await resp.json();
-    const batch = data.conversations || [];
+    const batch = json.conversations || [];
     if (!batch.length) break;
 
     all = all.concat(batch);
 
-    // Stop once we've reached conversations older than 90 days
     const oldest = batch[batch.length - 1];
     const oldestTs = oldest.lastMessageDate || oldest.dateAdded || 0;
     if (oldestTs < ninetyDaysAgo) break;
@@ -44,36 +52,34 @@ async function fetchConversations(locationId, h, maxPages = 15) {
     if (batch.length < 20) break;
   }
 
-  return all;
+  return { conversations: all, errors };
 }
 
 /** Fetch GHL users → id:name map */
 async function fetchUsers(locationId, h) {
   try {
-    const resp = await fetch(`${BASE}/users/?locationId=${locationId}`, { headers: h });
-    if (!resp.ok) return {};
-    const data = await resp.json();
+    const { ok, json } = await ghlFetch(`${BASE}/users/?locationId=${locationId}`, h);
+    if (!ok) return { map: {}, error: json };
     const map = {};
-    for (const u of (data.users || [])) {
+    for (const u of (json.users || [])) {
       map[u.id] = u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || u.id;
     }
-    return map;
-  } catch (_) {
-    return {};
+    return { map, error: null };
+  } catch (e) {
+    return { map: {}, error: e.message };
   }
 }
 
-/** Get total contact count (optionally filtered by tag) */
+/** Get total contact count */
 async function getContactCount(locationId, h, tag) {
   try {
     let url = `${BASE}/contacts/?locationId=${locationId}&limit=1`;
     if (tag) url += `&tags[]=${encodeURIComponent(tag)}`;
-    const resp = await fetch(url, { headers: h });
-    if (!resp.ok) return 0;
-    const d = await resp.json();
-    return d.meta?.total ?? d.total ?? 0;
-  } catch (_) {
-    return 0;
+    const { ok, json } = await ghlFetch(url, h);
+    if (!ok) return { count: 0, error: json };
+    return { count: json.meta?.total ?? json.total ?? 0, error: null };
+  } catch (e) {
+    return { count: 0, error: e.message };
   }
 }
 
@@ -81,34 +87,32 @@ async function getContactCount(locationId, h, tag) {
 async function fetchRecentContacts(locationId, h, pages = 5) {
   let all = [];
   let startAfterId = null;
+  const errors = [];
 
   for (let i = 0; i < pages; i++) {
     let url = `${BASE}/contacts/?locationId=${locationId}&limit=100&sortBy=date_added&sort=desc`;
     if (startAfterId) url += `&startAfterId=${startAfterId}`;
 
-    const resp = await fetch(url, { headers: h });
-    if (!resp.ok) break;
-    const data = await resp.json();
-    const batch = data.contacts || [];
+    const { ok, json } = await ghlFetch(url, h);
+    if (!ok) { errors.push(json); break; }
+
+    const batch = json.contacts || [];
     if (!batch.length) break;
 
     all = all.concat(batch);
-    startAfterId = data.meta?.startAfterId ?? null;
+    startAfterId = json.meta?.startAfterId ?? null;
     if (!startAfterId || batch.length < 100) break;
   }
 
-  return all;
+  return { contacts: all, errors };
 }
 
-function toDateStr(ts) {
-  return new Date(ts).toISOString().slice(0, 10);
-}
+function toDateStr(ts) { return new Date(ts).toISOString().slice(0, 10); }
 
 function lastNDays(n) {
   const days = [];
   for (let i = n - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
+    const d = new Date(); d.setDate(d.getDate() - i);
     days.push(d.toISOString().slice(0, 10));
   }
   return days;
@@ -116,11 +120,11 @@ function lastNDays(n) {
 
 const SOURCE_TAGS = [
   { label: 'Direct Mail',   matches: ['dm force', 'direct mail', 'mail', 'mailer'] },
-  { label: 'Cold Call',     matches: ['cold call', 'cold calling', 'outbound call'] },
-  { label: 'PPC / Google',  matches: ['ppc', 'google', 'adwords', 'paid search'] },
+  { label: 'Cold Call',     matches: ['cold call', 'cold calling'] },
+  { label: 'PPC / Google',  matches: ['ppc', 'google', 'adwords'] },
   { label: 'Facebook / IG', matches: ['facebook', 'fb', 'instagram', 'ig', 'social', 'meta'] },
-  { label: 'SMS Blast',     matches: ['sms blast', 'sms', 'text blast'] },
-  { label: 'Driving 4 $',   matches: ['driving', 'd4d', 'driving for dollars'] },
+  { label: 'SMS Blast',     matches: ['sms blast', 'text blast'] },
+  { label: 'Driving 4 $',   matches: ['driving', 'd4d'] },
   { label: 'Referral',      matches: ['referral', 'refer'] },
   { label: 'Website',       matches: ['website', 'web', 'organic', 'seo'] },
   { label: 'HS Import',     matches: ['hs import', 'hubspot'] },
@@ -145,7 +149,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'no-store');
 
-  const apiKey    = process.env.GHL_API_KEY;
+  const apiKey     = process.env.GHL_API_KEY;
   const locationId = process.env.GHL_LOCATION_ID;
 
   if (!apiKey || !locationId) {
@@ -155,7 +159,12 @@ export default async function handler(req, res) {
   const h = ghlHeaders(apiKey);
 
   try {
-    const [conversations, userMap, missedCallTotal, recentContacts] = await Promise.all([
+    const [
+      { conversations, errors: convErrors },
+      { map: userMap, error: userError },
+      { count: missedCallTotal },
+      { contacts: recentContacts, errors: contactErrors },
+    ] = await Promise.all([
       fetchConversations(locationId, h, 15),
       fetchUsers(locationId, h),
       getContactCount(locationId, h, 'missed call'),
@@ -163,17 +172,17 @@ export default async function handler(req, res) {
     ]);
 
     // ── Call filtering ───────────────────────────────────────────────────────
-    const callConvs    = conversations.filter(c => c.lastMessageType === 'TYPE_CALL');
-    const inboundCalls = callConvs.filter(c => c.lastMessageDirection === 'inbound');
+    const callConvs     = conversations.filter(c => c.lastMessageType === 'TYPE_CALL');
+    const inboundCalls  = callConvs.filter(c => c.lastMessageDirection === 'inbound');
     const outboundCalls = callConvs.filter(c => c.lastMessageDirection === 'outbound');
-    const missedConvs  = inboundCalls.filter(looksLikeMissed);
+    const missedConvs   = inboundCalls.filter(looksLikeMissed);
     const answeredCalls = inboundCalls.length - missedConvs.length;
 
     // ── By-user aggregation ──────────────────────────────────────────────────
     const userStats = {};
     for (const c of inboundCalls) {
       const uid = c.assignedTo || 'unassigned';
-      if (!userStats[uid]) userStats[uid] = { userId: uid, name: userMap[uid] || 'Unassigned', inbound: 0, missed: 0 };
+      if (!userStats[uid]) userStats[uid] = { userId: uid, name: userMap[uid] || uid, inbound: 0, missed: 0 };
       userStats[uid].inbound++;
       if (looksLikeMissed(c)) userStats[uid].missed++;
     }
@@ -218,6 +227,13 @@ export default async function handler(req, res) {
       typeCounts[t] = (typeCounts[t] || 0) + 1;
     }
 
+    // ── Build response (include _errors so frontend can show warnings) ────────
+    const _errors = [
+      ...(convErrors.length    ? [{ source: 'conversations', details: convErrors }] : []),
+      ...(contactErrors.length ? [{ source: 'contacts',      details: contactErrors }] : []),
+      ...(userError            ? [{ source: 'users',         details: userError }] : []),
+    ];
+
     return res.status(200).json({
       fetchedAt: new Date().toISOString(),
       window: { conversations: conversations.length, days: 90 },
@@ -235,6 +251,7 @@ export default async function handler(req, res) {
       channelMix: Object.entries(typeCounts)
         .map(([type, count]) => ({ type, count }))
         .sort((a, b) => b.count - a.count),
+      ..._errors.length ? { _errors } : {},
     });
 
   } catch (err) {

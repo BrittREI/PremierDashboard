@@ -284,6 +284,19 @@ async function load() {
     if (!res.ok) throw new Error(`Server error ${res.status}`);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
+
+    // Surface any GHL API errors prominently so we can diagnose
+    if (data._errors && data._errors.length) {
+      const msgs = data._errors.map(e =>
+        `<b>${e.source}:</b> ${JSON.stringify(e.details)}`
+      ).join('<br>');
+      document.querySelector('.page').insertAdjacentHTML('afterbegin',
+        `<div class="err" style="margin-bottom:14px;word-break:break-all">
+          ⚠ GHL API errors (data may be incomplete):<br>${msgs}
+        </div>`
+      );
+    }
+
     render(data);
   } catch (err) {
     $('content').innerHTML = `<div class="err">Failed to load: ${err.message}</div>`;
