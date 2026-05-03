@@ -77,21 +77,37 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ received: true, processed: false, reason: `Not a CALL event (messageType=${payload.messageType})` });
   }
 
-  if (!payload.contactId) {
-    console.error("Webhook missing contactId:", payload);
-    return res.status(400).json({ error: "Missing contactId in payload" });
+  // GHL workflow payloads nest contact under payload.contact.id
+  // Native webhook payloads use top-level payload.contactId
+  const contactId = payload.contactId || payload.contact?.id || payload.contact_id || null;
+
+  if (!contactId) {
+    // Still store the raw payload so we can inspect what GHL is actually sending
+    console.error("Webhook missing contactId — raw payload:", JSON.stringify(payload));
+    return res.status(400).json({ error: "Missing contactId in payload", raw: payload });
   }
 
+  // Normalize direction — may be top-level or nested under payload.call
+  const rawDirection = (payload.direction || payload.call?.direction || "").toLowerCase();
+  const direction = rawDirection.includes("inbound") ? "inbound" : "outbound";
+
+  // callDuration may be a number (native webhook) or string (workflow template)
+  const callDuration = parseInt(payload.callDuration ?? payload.call?.duration ?? 0, 10) || 0;
+
+  // Normalize call status to lowercase
+  const callStatus = (payload.callStatus || payload.call?.status || "unknown")
+    .toLowerCase().replace(/\s+/g, "-");
+
   const record = {
-    ghl_message_id:        payload.messageId        || null,
-    contact_id:            payload.contactId,
-    conversation_id:       payload.conversationId   || null,
-    location_id:           payload.locationId       || null,
-    direction:             payload.direction        || "outbound",
-    call_status:           payload.callStatus       || "unknown",
-    call_duration_seconds: payload.callDuration     || 0,
-    from_number:           payload.from             || null,
-    to_number:             payload.to               || null,
+    ghl_message_id:        payload.messageId                           || null,
+    contact_id:            contactId,
+    conversation_id:       payload.conversationId                      || null,
+    location_id:           payload.locationId                          || null,
+    direction,
+    call_status:           callStatus,
+    call_duration_seconds: callDuration,
+    from_number:           payload.from || payload.call?.from          || null,
+    to_number:             payload.to   || payload.call?.to            || null,
     date_added:            payload.dateAdded
                              ? new Date(payload.dateAdded).toISOString()
                              : new Date().toISOString(),
