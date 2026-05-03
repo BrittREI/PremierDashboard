@@ -6,6 +6,10 @@
     "dev": "vercel dev"
   },
   "devDependencies": {
+    "@vercel/node": "^5.7.15",
     "vercel": "latest"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.105.1"
   }
 }
