@@ -14,12 +14,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // Build the GHL path from the catch-all segments
-  const segments = req.query.path;
-  const ghlPath = Array.isArray(segments) ? segments.join("/") : segments ?? "";
+  // Build the GHL path from the "path" query param (set by Vercel rewrite)
+  const rawPath = req.query.path;
+  const ghlPath = Array.isArray(rawPath) ? rawPath.join("/") : rawPath ?? "";
   const url = new URL(`${GHL_BASE}/${ghlPath}`);
 
-  // Forward query params
+  // Forward remaining query params (exclude "path" which is the rewrite key)
   const params = { ...req.query };
   delete params.path;
   for (const [k, v] of Object.entries(params)) {
@@ -28,7 +28,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Inject locationId if not already set (server-side injection)
   if (!url.searchParams.has("locationId") && !url.searchParams.has("location_id")) {
-    // Detect which param name the endpoint expects
     if (ghlPath.includes("opportunities/search")) {
       url.searchParams.set("location_id", locationId);
     } else {
@@ -43,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     url.searchParams.set("location_id", locationId);
   }
 
-  // For POST requests (contacts/search), inject locationId into body
+  // For POST requests, inject locationId into body
   let body: string | undefined;
   if (req.method === "POST" && req.body) {
     const parsed = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
