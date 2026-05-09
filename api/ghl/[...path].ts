@@ -7,7 +7,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const locationId = process.env.GHL_LOCATION_ID;
 
   if (!token || !locationId) {
-    return res.status(500).json({ error: "GHL credentials not configured" });
+    return res.status(500).json({
+      error: "GHL credentials not configured",
+      hasToken: !!token,
+      hasLocation: !!locationId,
+    });
   }
 
   // Build the GHL path from the catch-all segments
@@ -15,11 +19,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const ghlPath = Array.isArray(segments) ? segments.join("/") : segments ?? "";
   const url = new URL(`${GHL_BASE}/${ghlPath}`);
 
-  // Forward query params, injecting locationId defaults
+  // Forward query params
   const params = { ...req.query };
-  delete params.path; // remove the catch-all param
+  delete params.path;
   for (const [k, v] of Object.entries(params)) {
-    if (typeof v === "string") url.searchParams.set(k, v);
+    if (typeof v === "string" && v !== "") url.searchParams.set(k, v);
+  }
+
+  // Inject locationId if not already set (server-side injection)
+  if (!url.searchParams.has("locationId") && !url.searchParams.has("location_id")) {
+    // Detect which param name the endpoint expects
+    if (ghlPath.includes("opportunities/search")) {
+      url.searchParams.set("location_id", locationId);
+    } else {
+      url.searchParams.set("locationId", locationId);
+    }
+  }
+  // Fill in empty locationId/location_id with server value
+  if (url.searchParams.get("locationId") === "") {
+    url.searchParams.set("locationId", locationId);
+  }
+  if (url.searchParams.get("location_id") === "") {
+    url.searchParams.set("location_id", locationId);
+  }
+
+  // For POST requests (contacts/search), inject locationId into body
+  let body: string | undefined;
+  if (req.method === "POST" && req.body) {
+    const parsed = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    if (!parsed.locationId) {
+      parsed.locationId = locationId;
+    }
+    body = JSON.stringify(parsed);
   }
 
   try {
@@ -31,12 +62,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: req.method === "POST" ? JSON.stringify(req.body) : undefined,
+      body,
     });
 
     const data = await ghlRes.json();
 
-    // Cache for 2 minutes on CDN, 30s in browser
     res.setHeader("Cache-Control", "s-maxage=120, stale-while-revalidate=60");
     return res.status(ghlRes.status).json(data);
   } catch (err) {
