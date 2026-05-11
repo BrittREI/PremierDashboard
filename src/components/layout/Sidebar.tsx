@@ -6,11 +6,15 @@ import {
   Target,
   FileText,
   Home,
+  LayoutDashboard,
+  Phone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { to: "/", label: "Overview", icon: Home },
+  { to: "/ceo", label: "CEO Dashboard", icon: LayoutDashboard },
+  { to: "/calls", label: "Call Performance", icon: Phone },
   { to: "/kpi", label: "KPI Report", icon: BarChart3 },
   { to: "/pipeline", label: "Pipeline Health", icon: Activity },
   { to: "/team", label: "Team Performance", icon: Users },

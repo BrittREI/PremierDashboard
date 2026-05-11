@@ -103,6 +103,38 @@ export interface ContactSearchResult {
   total: number;
 }
 
+// Call / conversation analytics (from /api/call-stats)
+export interface CallStats {
+  fetchedAt: string;
+  window: { conversations: number; days: number };
+  calls: {
+    total: number;
+    inbound: number;
+    outbound: number;
+    missed: number;
+    answered: number;
+    answerRate: number;
+  };
+  byUser: Array<{
+    userId: string;
+    name: string;
+    inbound: number;
+    missed: number;
+    answered: number;
+    answerRate: number;
+  }>;
+  trend: Array<{
+    date: string;
+    inbound: number;
+    missed: number;
+    outbound: number;
+  }>;
+  channelMix: Array<{
+    type: string;
+    count: number;
+  }>;
+}
+
 // Dashboard-specific types
 export interface StageCount {
   stageId: string;

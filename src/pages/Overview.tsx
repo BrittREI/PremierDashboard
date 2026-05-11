@@ -9,6 +9,8 @@ import {
   ArrowRight,
   DollarSign,
   TrendingUp,
+  LayoutDashboard,
+  Phone,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { useAllOpportunities } from "@/hooks/useGhlData";
@@ -16,6 +18,8 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { USERS } from "@/types/ghl";
 
 const QUICK_LINKS = [
+  { to: "/ceo", label: "CEO Dashboard", icon: LayoutDashboard, color: "bg-slate-50 text-slate-700" },
+  { to: "/calls", label: "Call Performance", icon: Phone, color: "bg-cyan-50 text-cyan-600" },
   { to: "/kpi", label: "KPI Report", icon: BarChart3, color: "bg-blue-50 text-blue-600" },
   { to: "/pipeline", label: "Pipeline Health", icon: Activity, color: "bg-purple-50 text-purple-600" },
   { to: "/team", label: "Team Performance", icon: Users, color: "bg-emerald-50 text-emerald-600" },

@@ -11,6 +11,7 @@ import type {
   OpportunitySearchResult,
   ContactSearchResult,
   GhlUser,
+  CallStats,
 } from "@/types/ghl";
 
 const isDev = import.meta.env.DEV;
@@ -162,4 +163,19 @@ export async function listUsers(): Promise<GhlUser[]> {
     query: { locationId: LOCATION_ID },
   });
   return data.users;
+}
+
+/** Fetch call/conversation analytics from dedicated endpoint */
+export async function fetchCallStats(): Promise<CallStats> {
+  const url = isDev
+    ? `/api/call-stats`
+    : `/api/call-stats`;
+  const res = await fetch(url, {
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Call stats: ${res.status} - ${text.slice(0, 300)}`);
+  }
+  return res.json() as Promise<CallStats>;
 }

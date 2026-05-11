@@ -4,6 +4,7 @@ import {
   fetchAllOpportunities,
   searchContacts,
   listUsers,
+  fetchCallStats,
 } from "@/api/ghl-client";
 import { PIPELINES } from "@/types/ghl";
 
@@ -55,6 +56,7 @@ export function useAllOpportunities() {
 export function useContacts(opts?: {
   tag?: string;
   dateAddedAfter?: number;
+  dateAddedBefore?: number;
   limit?: number;
 }) {
   return useQuery({
@@ -63,6 +65,7 @@ export function useContacts(opts?: {
       searchContacts({
         tag: opts?.tag,
         dateAddedAfter: opts?.dateAddedAfter,
+        dateAddedBefore: opts?.dateAddedBefore,
         limit: opts?.limit ?? 100,
       }),
     staleTime: 2 * 60 * 1000,
@@ -75,5 +78,14 @@ export function useUsers() {
     queryKey: ["users"],
     queryFn: listUsers,
     staleTime: 10 * 60 * 1000,
+  });
+}
+
+/** Call/conversation analytics */
+export function useCallStats() {
+  return useQuery({
+    queryKey: ["call-stats"],
+    queryFn: fetchCallStats,
+    staleTime: 5 * 60 * 1000,
   });
 }
