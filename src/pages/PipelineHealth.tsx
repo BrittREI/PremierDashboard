@@ -3,7 +3,7 @@ import { FunnelChart } from "@/components/charts/FunnelChart";
 import { useAllOpportunities, usePipelines } from "@/hooks/useGhlData";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import type { StageCount, Pipeline, Opportunity } from "@/types/ghl";
-import { PIPELINES } from "@/types/ghl";
+import { PIPELINES, getDealRevenue } from "@/types/ghl";
 
 function buildStageCounts(
   pipeline: Pipeline | undefined,
@@ -16,7 +16,7 @@ function buildStageCounts(
       stageId: stage.id,
       stageName: stage.name,
       count: stageOpps.length,
-      totalValue: stageOpps.reduce((s, o) => s + o.monetaryValue, 0),
+      totalValue: stageOpps.reduce((s, o) => s + getDealRevenue(o), 0),
       position: stage.position,
     };
   });
@@ -151,21 +151,21 @@ export function PipelineHealth() {
         title="Lead Management"
         stages={leadStages}
         totalOpps={leadManagement.length}
-        totalValue={leadManagement.reduce((s, o) => s + o.monetaryValue, 0)}
+        totalValue={leadManagement.reduce((s, o) => s + getDealRevenue(o), 0)}
       />
 
       <PipelineCard
         title="Acquisitions"
         stages={acqStages}
         totalOpps={acquisitions.length}
-        totalValue={acquisitions.reduce((s, o) => s + o.monetaryValue, 0)}
+        totalValue={acquisitions.reduce((s, o) => s + getDealRevenue(o), 0)}
       />
 
       <PipelineCard
         title="Disposition"
         stages={dispStages}
         totalOpps={disposition.length}
-        totalValue={disposition.reduce((s, o) => s + o.monetaryValue, 0)}
+        totalValue={disposition.reduce((s, o) => s + getDealRevenue(o), 0)}
       />
     </div>
   );

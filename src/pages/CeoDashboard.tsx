@@ -9,17 +9,28 @@ import {
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { StackedBarChart } from "@/components/charts/StackedBarChart";
-import { useAllOpportunities, useContacts } from "@/hooks/useGhlData";
+import {
+  useAllOpportunities,
+  useContacts,
+  usePipelines,
+} from "@/hooks/useGhlData";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import type { Opportunity } from "@/types/ghl";
-import { USERS } from "@/types/ghl";
+import {
+  USERS,
+  DEAL_PIPELINE_IDS,
+  getDealRevenue,
+  getPurchasePrice,
+  getBuyerPrice,
+  buildStageMap,
+} from "@/types/ghl";
 
 type TimePeriod = "all" | "2024" | "2025" | "2026";
 
-// Disposition pipeline stage IDs
-const CLOSED_WON_STAGE = "3e83fed8-a5cb-4b27-b1f9-4277cc7642ef";
-const CLOSED_LOST_STAGE = "a8f59eda-3bac-4b15-8441-5ed852f965f0";
-const DELAYED_STAGE = "c04a1246-5853-4391-ab2a-d6553882b12c";
+// Stage name patterns for matching across pipelines (disposition + archives)
+const CLOSED_WON_PATTERN = /closed\s*won/i;
+const CLOSED_LOST_PATTERN = /closed\s*lost/i;
+const DELAYED_PATTERN = /delayed/i;
 
 function getYearQuarter(dateStr: string) {
   const d = new Date(dateStr);
@@ -30,21 +41,25 @@ function getYearQuarter(dateStr: string) {
   };
 }
 
-function isClosedWon(opp: Opportunity) {
-  return opp.pipelineStageId === CLOSED_WON_STAGE;
+/** Check if an opportunity is in a "Closed Won" stage (works across all deal pipelines) */
+function isClosedWon(opp: Opportunity, stageMap: Record<string, string>) {
+  const name = stageMap[opp.pipelineStageId] ?? "";
+  return CLOSED_WON_PATTERN.test(name);
 }
 
-function isClosedLost(opp: Opportunity) {
-  return (
-    opp.pipelineStageId === CLOSED_LOST_STAGE || opp.status === "lost"
-  );
+/** Check if an opportunity is in a "Closed Lost" stage */
+function isClosedLost(opp: Opportunity, stageMap: Record<string, string>) {
+  const name = stageMap[opp.pipelineStageId] ?? "";
+  return CLOSED_LOST_PATTERN.test(name) || opp.status === "lost";
 }
 
-function isActive(opp: Opportunity) {
+/** Check if a deal is active (not won, lost, or delayed) */
+function isActive(opp: Opportunity, stageMap: Record<string, string>) {
+  const name = stageMap[opp.pipelineStageId] ?? "";
   return (
-    !isClosedWon(opp) &&
-    !isClosedLost(opp) &&
-    opp.pipelineStageId !== DELAYED_STAGE &&
+    !isClosedWon(opp, stageMap) &&
+    !isClosedLost(opp, stageMap) &&
+    !DELAYED_PATTERN.test(name) &&
     opp.status === "open"
   );
 }
@@ -80,8 +95,16 @@ const QUARTER_LABELS: Record<string, string> = {
 export function CeoDashboard() {
   const [period, setPeriod] = useState<TimePeriod>("all");
   const [stageFilter, setStageFilter] = useState("All");
-  const { disposition, leadManagement, acquisitions, all, isLoading } =
+  const { allDeals, leadManagement, acquisitions, all, isLoading } =
     useAllOpportunities();
+  const pipelinesQuery = usePipelines();
+
+  // Build dynamic stage name lookup from API pipeline data
+  const stageMap = useMemo(
+    () => buildStageMap(pipelinesQuery.data ?? []),
+    [pipelinesQuery.data]
+  );
+
   const contacts2024 = useContacts({
     dateAddedAfter: new Date("2024-01-01").getTime(),
     dateAddedBefore: new Date("2025-01-01").getTime(),
@@ -98,11 +121,11 @@ export function CeoDashboard() {
   });
   const contactsAll = useContacts({ limit: 1 });
 
-  // Process deals into year/quarter structure
+  // Process deals into year/quarter structure (disposition + archives)
   const { won, lost, active, byYear } = useMemo(() => {
-    const wonDeals = disposition.filter(isClosedWon);
-    const lostDeals = disposition.filter(isClosedLost);
-    const activeDeals = disposition.filter(isActive);
+    const wonDeals = allDeals.filter((d) => isClosedWon(d, stageMap));
+    const lostDeals = allDeals.filter((d) => isClosedLost(d, stageMap));
+    const activeDeals = allDeals.filter((d) => isActive(d, stageMap));
 
     const yearMap: Record<number, YearData> = {};
 
@@ -125,7 +148,7 @@ export function CeoDashboard() {
     addTo(lostDeals, "lost", "lastStatusChangeAt");
 
     return { won: wonDeals, lost: lostDeals, active: activeDeals, byYear: yearMap };
-  }, [disposition]);
+  }, [allDeals, stageMap]);
 
   // Gross lead counts from contacts
   const grossLeads: Record<string, number> = useMemo(
@@ -159,14 +182,14 @@ export function CeoDashboard() {
 
   // KPI calculations for current period
   const kpis = useMemo(() => {
-    const totalRev = periodWon.reduce((s, d) => s + d.monetaryValue, 0);
+    const totalRev = periodWon.reduce((s, d) => s + getDealRevenue(d), 0);
     const avgFee = periodWon.length ? totalRev / periodWon.length : 0;
     const total = periodWon.length + periodLost.length;
     const closeRate = total > 0 ? (periodWon.length / total) * 100 : 0;
 
     // Funnel metrics
     const gross = grossLeads[period] || 0;
-    const contracts = period === "all" ? disposition.length : disposition.filter((d) => {
+    const contracts = period === "all" ? allDeals.length : allDeals.filter((d) => {
       const yr = parseInt(period);
       return d.createdAt && getYearQuarter(d.createdAt).year === yr;
     }).length;
@@ -175,8 +198,8 @@ export function CeoDashboard() {
     const netLeadIds = new Set<string>();
     const periodDeals =
       period === "all"
-        ? disposition
-        : disposition.filter((d) => {
+        ? allDeals
+        : allDeals.filter((d) => {
             const yr = parseInt(period);
             return d.createdAt && getYearQuarter(d.createdAt).year === yr;
           });
@@ -195,7 +218,7 @@ export function CeoDashboard() {
       netLeads: netLeadIds.size,
       contracts,
     };
-  }, [periodWon, periodLost, grossLeads, period, disposition, active]);
+  }, [periodWon, periodLost, grossLeads, period, allDeals, active]);
 
   // Annual comparison table data
   const annualData = useMemo(() => {
@@ -209,7 +232,7 @@ export function CeoDashboard() {
       const qs: (keyof YearData)[] = ["Q1", "Q2", "Q3", "Q4"];
       const yw = qs.flatMap((q) => yd[q].won);
       const yl = qs.flatMap((q) => yd[q].lost);
-      const rev = yw.reduce((s, d) => s + d.monetaryValue, 0);
+      const rev = yw.reduce((s, d) => s + getDealRevenue(d), 0);
       const avg = yw.length ? rev / yw.length : 0;
       const total = yw.length + yl.length;
       const rate = total > 0 ? (yw.length / total) * 100 : 0;
@@ -246,7 +269,7 @@ export function CeoDashboard() {
           if (!qd || (!qd.won.length && !qd.lost.length)) continue;
           data.push({
             label: `${yr} ${q}`,
-            revenue: qd.won.reduce((s, d) => s + d.monetaryValue, 0),
+            revenue: qd.won.reduce((s, d) => s + getDealRevenue(d), 0),
           });
         }
       }
@@ -257,7 +280,7 @@ export function CeoDashboard() {
     if (!yd) return [];
     return (["Q1", "Q2", "Q3", "Q4"] as const).map((q) => ({
       label: q,
-      revenue: yd[q].won.reduce((s, d) => s + d.monetaryValue, 0),
+      revenue: yd[q].won.reduce((s, d) => s + getDealRevenue(d), 0),
     }));
   }, [byYear, period]);
 
@@ -299,12 +322,12 @@ export function CeoDashboard() {
     return (["Q1", "Q2", "Q3", "Q4"] as const)
       .map((q) => {
         const qd = yd[q];
-        const rev = qd.won.reduce((s, d) => s + d.monetaryValue, 0);
+        const rev = qd.won.reduce((s, d) => s + getDealRevenue(d), 0);
         const avg = qd.won.length ? rev / qd.won.length : 0;
         const total = qd.won.length + qd.lost.length;
         const rate = total > 0 ? (qd.won.length / total) * 100 : 0;
         const best = [...qd.won].sort(
-          (a, b) => b.monetaryValue - a.monetaryValue
+          (a, b) => getDealRevenue(b) - getDealRevenue(a)
         )[0];
         return {
           quarter: QUARTER_LABELS[q],
@@ -314,7 +337,7 @@ export function CeoDashboard() {
           revenue: rev,
           avgFee: avg,
           bestDeal: best
-            ? `${best.name.slice(0, 28)} (${formatCurrency(best.monetaryValue)})`
+            ? `${best.name.slice(0, 28)} (${formatCurrency(getDealRevenue(best))})`
             : "—",
           hasData: qd.won.length > 0 || qd.lost.length > 0,
         };
@@ -335,18 +358,7 @@ export function CeoDashboard() {
     return active.filter((d) => d.pipelineStageId === stageFilter);
   }, [active, stageFilter]);
 
-  // Get stage names from disposition pipeline stages (hardcoded from known data)
-  const STAGE_NAMES: Record<string, string> = {
-    "005f91ef-df6a-4281-9ebc-81db95208591": "New Deal",
-    "9a1aeb5a-052b-405e-beec-9ad1733ac366": "Marketing",
-    "a8c439c6-b668-4630-aa4f-7fcfe281cff8": "Assigned",
-    "827c9a92-1902-4d54-bd44-2f58a8dd9b65": "Set to Close",
-    [CLOSED_WON_STAGE]: "Closed Won",
-    [CLOSED_LOST_STAGE]: "Closed Lost",
-    [DELAYED_STAGE]: "Delayed",
-  };
-
-  const getStageName = (id: string) => STAGE_NAMES[id] || id.slice(0, 8);
+  const getStageName = (id: string) => stageMap[id] || id.slice(0, 8);
 
   // All closed-won deals for the table
   const closedWonDeals = useMemo(() => {
@@ -752,8 +764,8 @@ export function CeoDashboard() {
                       {getStageName(d.pipelineStageId)}
                     </td>
                     <td className="px-5 py-3 text-right font-medium">
-                      {d.monetaryValue > 0
-                        ? formatCurrency(d.monetaryValue)
+                      {getDealRevenue(d) > 0
+                        ? formatCurrency(getDealRevenue(d))
                         : "—"}
                     </td>
                     <td className="px-5 py-3 text-slate-600">
@@ -813,8 +825,8 @@ export function CeoDashboard() {
                         </td>
                       )}
                       <td className="px-5 py-3 text-right font-medium text-emerald-600">
-                        {d.monetaryValue > 0
-                          ? formatCurrency(d.monetaryValue)
+                        {getDealRevenue(d) > 0
+                          ? formatCurrency(getDealRevenue(d))
                           : "—"}
                       </td>
                       <td className="px-5 py-3 text-slate-600">

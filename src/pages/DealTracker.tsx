@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useAllOpportunities, usePipelines } from "@/hooks/useGhlData";
 import { formatCurrency, formatDate, getLeadSource } from "@/lib/utils";
-import { USERS, PIPELINES } from "@/types/ghl";
+import { USERS, PIPELINES, getDealRevenue } from "@/types/ghl";
 import type { Opportunity, Pipeline } from "@/types/ghl";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,8 @@ function getPipelineName(pipelineId: string): string {
   if (pipelineId === PIPELINES.leadManagement.id) return "Lead Mgmt";
   if (pipelineId === PIPELINES.acquisitions.id) return "Acquisitions";
   if (pipelineId === PIPELINES.disposition.id) return "Disposition";
+  if (pipelineId === PIPELINES.archive2024.id) return "Archive 2024";
+  if (pipelineId === PIPELINES.archive2025.id) return "Archive 2025";
   return "Other";
 }
 
@@ -75,7 +77,7 @@ export function DealTracker() {
         case "name":
           return dir * a.name.localeCompare(b.name);
         case "value":
-          return dir * (a.monetaryValue - b.monetaryValue);
+          return dir * (getDealRevenue(a) - getDealRevenue(b));
         case "stage":
           return (
             dir *
@@ -144,6 +146,8 @@ export function DealTracker() {
             <option value={PIPELINES.leadManagement.id}>Lead Management</option>
             <option value={PIPELINES.acquisitions.id}>Acquisitions</option>
             <option value={PIPELINES.disposition.id}>Disposition</option>
+            <option value={PIPELINES.archive2024.id}>[Archive] 2024 Deals</option>
+            <option value={PIPELINES.archive2025.id}>[Archive] 2025 Deals</option>
           </select>
         </div>
       </div>
@@ -205,8 +209,8 @@ export function DealTracker() {
                     </td>
                     <td className="px-6 py-3 text-slate-600">{stageName}</td>
                     <td className="px-6 py-3 text-right font-medium">
-                      {opp.monetaryValue > 0
-                        ? formatCurrency(opp.monetaryValue)
+                      {getDealRevenue(opp) > 0
+                        ? formatCurrency(getDealRevenue(opp))
                         : "—"}
                     </td>
                     <td className="px-6 py-3 text-slate-600">

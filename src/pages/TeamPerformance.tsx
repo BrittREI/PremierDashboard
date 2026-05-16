@@ -4,8 +4,20 @@ import { StatCard } from "@/components/StatCard";
 import { BarChartHorizontal } from "@/components/charts/BarChartHorizontal";
 import { useAllOpportunities } from "@/hooks/useGhlData";
 import { formatCurrency, formatPercent } from "@/lib/utils";
-import { USERS } from "@/types/ghl";
+import { USERS, getDealRevenue } from "@/types/ghl";
 import type { TeamMemberMetrics, Opportunity } from "@/types/ghl";
+
+// Closed Won/Lost stage IDs across disposition + archive pipelines
+const CLOSED_WON_STAGES = new Set([
+  "3e83fed8-a5cb-4b27-b1f9-4277cc7642ef",
+  "6a367f1a-4ff7-428f-be3d-2df51570b022",
+  "095c237a-dce9-4327-9cc4-6132fad13eb6",
+]);
+const CLOSED_LOST_STAGES = new Set([
+  "a8f59eda-3bac-4b15-8441-5ed852f965f0",
+  "41b66375-0d1d-42e3-ac1f-b23a29e32569",
+  "92f99411-6a4c-451d-baf2-dc5974be1ffe",
+]);
 
 function buildTeamMetrics(opps: Opportunity[]): TeamMemberMetrics[] {
   const map = new Map<string, TeamMemberMetrics>();
@@ -54,17 +66,12 @@ function buildTeamMetrics(opps: Opportunity[]): TeamMemberMetrics[] {
     }
 
     m.assignedDeals++;
-    m.totalValue += opp.monetaryValue;
+    m.totalValue += getDealRevenue(opp);
 
-    // Closed Won stage in Disposition
-    if (opp.pipelineStageId === "3e83fed8-a5cb-4b27-b1f9-4277cc7642ef") {
+    if (CLOSED_WON_STAGES.has(opp.pipelineStageId)) {
       m.closedWon++;
     }
-    // Closed Lost stage in Disposition
-    if (
-      opp.pipelineStageId === "a8f59eda-3bac-4b15-8441-5ed852f965f0" ||
-      opp.status === "lost"
-    ) {
+    if (CLOSED_LOST_STAGES.has(opp.pipelineStageId) || opp.status === "lost") {
       m.closedLost++;
     }
   }

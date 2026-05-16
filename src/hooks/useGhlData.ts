@@ -31,23 +31,46 @@ export function useAllOpportunities() {
   const leadMgmt = useOpportunities(PIPELINES.leadManagement.id);
   const acquisitions = useOpportunities(PIPELINES.acquisitions.id);
   const disposition = useOpportunities(PIPELINES.disposition.id);
+  const archive2024 = useOpportunities(PIPELINES.archive2024.id);
+  const archive2025 = useOpportunities(PIPELINES.archive2025.id);
 
   return {
     leadManagement: leadMgmt.data ?? [],
     acquisitions: acquisitions.data ?? [],
     disposition: disposition.data ?? [],
+    archive2024: archive2024.data ?? [],
+    archive2025: archive2025.data ?? [],
+    /** All deal-pipeline opps: disposition + archives (for CEO Dashboard) */
+    allDeals: [
+      ...(disposition.data ?? []),
+      ...(archive2024.data ?? []),
+      ...(archive2025.data ?? []),
+    ],
     all: [
       ...(leadMgmt.data ?? []),
       ...(acquisitions.data ?? []),
       ...(disposition.data ?? []),
+      ...(archive2024.data ?? []),
+      ...(archive2025.data ?? []),
     ],
     isLoading:
-      leadMgmt.isLoading || acquisitions.isLoading || disposition.isLoading,
-    error: leadMgmt.error || acquisitions.error || disposition.error,
+      leadMgmt.isLoading ||
+      acquisitions.isLoading ||
+      disposition.isLoading ||
+      archive2024.isLoading ||
+      archive2025.isLoading,
+    error:
+      leadMgmt.error ||
+      acquisitions.error ||
+      disposition.error ||
+      archive2024.error ||
+      archive2025.error,
     refetch: () => {
       leadMgmt.refetch();
       acquisitions.refetch();
       disposition.refetch();
+      archive2024.refetch();
+      archive2025.refetch();
     },
   };
 }

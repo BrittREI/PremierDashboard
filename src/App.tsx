@@ -9,6 +9,7 @@ import { PipelineHealth } from "@/pages/PipelineHealth";
 import { TeamPerformance } from "@/pages/TeamPerformance";
 import { LeadSources } from "@/pages/LeadSources";
 import { DealTracker } from "@/pages/DealTracker";
+import { WeeklyReport } from "@/pages/WeeklyReport";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="team" element={<TeamPerformance />} />
             <Route path="sources" element={<LeadSources />} />
             <Route path="deals" element={<DealTracker />} />
+            <Route path="weekly" element={<WeeklyReport />} />
           </Route>
         </Routes>
       </BrowserRouter>

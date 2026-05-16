@@ -11,11 +11,12 @@ import {
   TrendingUp,
   LayoutDashboard,
   Phone,
+  Calendar,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { useAllOpportunities } from "@/hooks/useGhlData";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { USERS } from "@/types/ghl";
+import { USERS, getDealRevenue } from "@/types/ghl";
 
 const QUICK_LINKS = [
   { to: "/ceo", label: "CEO Dashboard", icon: LayoutDashboard, color: "bg-slate-50 text-slate-700" },
@@ -25,33 +26,36 @@ const QUICK_LINKS = [
   { to: "/team", label: "Team Performance", icon: Users, color: "bg-emerald-50 text-emerald-600" },
   { to: "/sources", label: "Lead Sources", icon: Target, color: "bg-amber-50 text-amber-600" },
   { to: "/deals", label: "Deal Tracker", icon: FileText, color: "bg-rose-50 text-rose-600" },
+  { to: "/weekly", label: "Weekly Report", icon: Calendar, color: "bg-teal-50 text-teal-600" },
 ];
 
 export function Overview() {
-  const { leadManagement, disposition, all, isLoading } =
+  const { leadManagement, allDeals, all, isLoading } =
     useAllOpportunities();
 
   const stats = useMemo(() => {
-    const closedWon = disposition.filter(
-      (d) => d.pipelineStageId === "3e83fed8-a5cb-4b27-b1f9-4277cc7642ef"
+    // Closed Won stage IDs across disposition + archive pipelines
+    const closedWon = allDeals.filter(
+      (d) => d.status === "won" || d.pipelineStageId === "3e83fed8-a5cb-4b27-b1f9-4277cc7642ef" ||
+        d.pipelineStageId === "6a367f1a-4ff7-428f-be3d-2df51570b022" || // archive 2024
+        d.pipelineStageId === "095c237a-dce9-4327-9cc4-6132fad13eb6"    // archive 2025
     );
-    const revenue = closedWon.reduce((s, d) => s + d.monetaryValue, 0);
-    const pipelineValue = disposition
+    const revenue = closedWon.reduce((s, d) => s + getDealRevenue(d), 0);
+    const pipelineValue = allDeals
       .filter(
         (d) =>
-          d.pipelineStageId !== "3e83fed8-a5cb-4b27-b1f9-4277cc7642ef" &&
-          d.pipelineStageId !== "a8f59eda-3bac-4b15-8441-5ed852f965f0" &&
+          !closedWon.includes(d) &&
           d.status === "open"
       )
-      .reduce((s, d) => s + d.monetaryValue, 0);
+      .reduce((s, d) => s + getDealRevenue(d), 0);
 
     return {
       totalLeads: leadManagement.length,
-      totalDeals: all.length,
+      totalDeals: allDeals.length,
       revenue,
       pipelineValue,
     };
-  }, [leadManagement, disposition, all]);
+  }, [leadManagement, allDeals]);
 
   // Recent deals (last 5 by creation date)
   const recentDeals = useMemo(
@@ -162,8 +166,8 @@ export function Overview() {
                     {opp.contact?.name || "—"}
                   </td>
                   <td className="px-6 py-3 text-right font-medium">
-                    {opp.monetaryValue > 0
-                      ? formatCurrency(opp.monetaryValue)
+                    {getDealRevenue(opp) > 0
+                      ? formatCurrency(getDealRevenue(opp))
                       : "—"}
                   </td>
                   <td className="px-6 py-3 text-slate-600">

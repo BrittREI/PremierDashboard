@@ -191,7 +191,113 @@ export const PIPELINES = {
     id: "KP5eOzAFCZJKbNmExR07",
     name: "Disposition",
   },
+  archive2024: {
+    id: "BdfsmFlfBPzwuSXAd0CT",
+    name: "[Archive] PPP 2024 Deals",
+  },
+  archive2025: {
+    id: "uQosjSQdmOQt0WkKU7cY",
+    name: "[Archive] PPP 2025 Deals",
+  },
 } as const;
+
+// Deal pipelines — disposition + archives (used for CEO Dashboard revenue)
+export const DEAL_PIPELINE_IDS = [
+  PIPELINES.disposition.id,
+  PIPELINES.archive2024.id,
+  PIPELINES.archive2025.id,
+] as const;
+
+// Custom field IDs for deal financials (on Disposition/Archive opportunities)
+export const CUSTOM_FIELDS = {
+  purchasePrice: "yy1zQAy8Exipwv8esZbm",
+  buyerPrice: "Y66sQcMfpiuozAYgotEJ",
+  assignmentFee: "Jxw7EXRUuNVkplvUOQbg",
+} as const;
+
+// Contact-level custom field IDs for lead source tracking
+export const CONTACT_FIELDS = {
+  leadSource: "vqDUdqc8vIRZR5mjp8ul",
+  subSource: "tZNoytQqIIcYz1XTVUpZ",
+  leadStatus: "U7iFpnPZo9qlcXZ2hjrx",
+  leadTemperature: "YoDVi2rywehyJkz3meHP",
+  propertyType: "qRtwlW07FS8QmHHx1qMU",
+  occupancyStatus: "Cqsilf3NT7BlYgPzbNox",
+} as const;
+
+/** Classify a contact or opportunity into a lead source channel */
+export function getLeadChannel(item: {
+  source?: string | null;
+  contact?: { tags?: string[] } | null;
+  tags?: string[];
+}): "DIY" | "REMail" | "PPL" | "Other" {
+  const src = (item.source ?? "").toLowerCase();
+  const tags = (item.contact?.tags ?? item.tags ?? []).map((t) =>
+    t.toLowerCase()
+  );
+
+  // Check source field first (most reliable)
+  if (src.includes("cold calling") || src.includes("diy")) return "DIY";
+  if (src.includes("organic") || src.includes("website")) return "DIY";
+  if (src.includes("remail") || src.includes("direct mailer")) return "REMail";
+  if (src.includes("ppl") || src.includes("red panda")) return "PPL";
+
+  // Fall back to tags
+  if (tags.some((t) => t.includes("diy") || t === "website" || t === "organic"))
+    return "DIY";
+  if (tags.some((t) => t === "remail" || t === "dm force")) return "REMail";
+  if (tags.some((t) => t === "ppl" || t === "redpanda")) return "PPL";
+  if (tags.some((t) => t === "mail")) return "REMail";
+
+  return "Other";
+}
+
+/** Extract the assignment fee from custom fields, falling back to monetaryValue */
+export function getDealRevenue(opp: Opportunity): number {
+  const feeField = opp.customFields?.find(
+    (f) => f.id === CUSTOM_FIELDS.assignmentFee
+  );
+  if (feeField) {
+    const val = feeField.fieldValueNumber ?? parseFloat(feeField.fieldValueString ?? "");
+    if (val && !isNaN(val) && val > 0) return val;
+  }
+  return opp.monetaryValue ?? 0;
+}
+
+/** Extract purchase price from custom fields */
+export function getPurchasePrice(opp: Opportunity): number {
+  const field = opp.customFields?.find(
+    (f) => f.id === CUSTOM_FIELDS.purchasePrice
+  );
+  if (field) {
+    const val = field.fieldValueNumber ?? parseFloat(field.fieldValueString ?? "");
+    if (val && !isNaN(val) && val > 0) return val;
+  }
+  return 0;
+}
+
+/** Extract buyer/dispo price from custom fields */
+export function getBuyerPrice(opp: Opportunity): number {
+  const field = opp.customFields?.find(
+    (f) => f.id === CUSTOM_FIELDS.buyerPrice
+  );
+  if (field) {
+    const val = field.fieldValueNumber ?? parseFloat(field.fieldValueString ?? "");
+    if (val && !isNaN(val) && val > 0) return val;
+  }
+  return 0;
+}
+
+/** Build a stage ID → stage name lookup from pipeline data */
+export function buildStageMap(pipelines: Pipeline[]): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const p of pipelines) {
+    for (const s of p.stages) {
+      map[s.id] = s.name;
+    }
+  }
+  return map;
+}
 
 export const USERS: Record<string, string> = {
   "22uQY2xLoEhFVC5TqQK2": "Brittany McCracken",

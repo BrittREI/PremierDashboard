@@ -6,6 +6,14 @@ import { BarChartHorizontal } from "@/components/charts/BarChartHorizontal";
 import { useAllOpportunities } from "@/hooks/useGhlData";
 import { formatCurrency, formatPercent, getLeadSource } from "@/lib/utils";
 import type { LeadSourceMetrics, Opportunity } from "@/types/ghl";
+import { getDealRevenue } from "@/types/ghl";
+
+// Closed Won stage IDs across disposition + archive pipelines
+const CLOSED_WON_STAGES = new Set([
+  "3e83fed8-a5cb-4b27-b1f9-4277cc7642ef",
+  "6a367f1a-4ff7-428f-be3d-2df51570b022",
+  "095c237a-dce9-4327-9cc4-6132fad13eb6",
+]);
 
 function buildSourceMetrics(opps: Opportunity[]): LeadSourceMetrics[] {
   const map = new Map<string, LeadSourceMetrics>();
@@ -18,10 +26,10 @@ function buildSourceMetrics(opps: Opportunity[]): LeadSourceMetrics[] {
       map.set(src, m);
     }
     m.count++;
-    m.totalValue += opp.monetaryValue;
+    m.totalValue += getDealRevenue(opp);
 
-    // Count as "converted" if in Disposition pipeline with Closed Won stage
-    if (opp.pipelineStageId === "3e83fed8-a5cb-4b27-b1f9-4277cc7642ef") {
+    // Count as "converted" if in a Closed Won stage (any deal pipeline)
+    if (CLOSED_WON_STAGES.has(opp.pipelineStageId)) {
       m.converted++;
     }
   }

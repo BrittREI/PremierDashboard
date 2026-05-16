@@ -13,7 +13,7 @@ import { BarChartHorizontal } from "@/components/charts/BarChartHorizontal";
 import { useAllOpportunities } from "@/hooks/useGhlData";
 import { formatCurrency, formatPercent, getLeadSource } from "@/lib/utils";
 import type { Opportunity } from "@/types/ghl";
-import { PIPELINES, USERS } from "@/types/ghl";
+import { PIPELINES, USERS, getDealRevenue } from "@/types/ghl";
 
 function computeKpis(
   leads: Opportunity[],
@@ -28,8 +28,8 @@ function computeKpis(
     (d) => isClosedLostStage(d) || d.status === "lost"
   );
 
-  const totalRevenue = closedWon.reduce((s, d) => s + d.monetaryValue, 0);
-  const pipelineValue = openDeals.reduce((s, d) => s + d.monetaryValue, 0);
+  const totalRevenue = closedWon.reduce((s, d) => s + getDealRevenue(d), 0);
+  const pipelineValue = openDeals.reduce((s, d) => s + getDealRevenue(d), 0);
   const winCount = closedWon.length;
   const lossCount = closedLost.length;
   const winRate = winCount + lossCount > 0
@@ -51,14 +51,25 @@ function computeKpis(
   };
 }
 
-// Stage name matchers for Disposition pipeline
+// Closed Won stage IDs across disposition + archive pipelines
+const CLOSED_WON_STAGES = new Set([
+  "3e83fed8-a5cb-4b27-b1f9-4277cc7642ef", // Disposition
+  "6a367f1a-4ff7-428f-be3d-2df51570b022", // Archive 2024
+  "095c237a-dce9-4327-9cc4-6132fad13eb6", // Archive 2025
+]);
+
+const CLOSED_LOST_STAGES = new Set([
+  "a8f59eda-3bac-4b15-8441-5ed852f965f0", // Disposition
+  "41b66375-0d1d-42e3-ac1f-b23a29e32569", // Archive 2024
+  "92f99411-6a4c-451d-baf2-dc5974be1ffe", // Archive 2025
+]);
+
 function isClosedWonStage(opp: Opportunity): boolean {
-  // Closed Won stage ID in Disposition pipeline
-  return opp.pipelineStageId === "3e83fed8-a5cb-4b27-b1f9-4277cc7642ef";
+  return CLOSED_WON_STAGES.has(opp.pipelineStageId);
 }
 
 function isClosedLostStage(opp: Opportunity): boolean {
-  return opp.pipelineStageId === "a8f59eda-3bac-4b15-8441-5ed852f965f0";
+  return CLOSED_LOST_STAGES.has(opp.pipelineStageId);
 }
 
 function isClosedStage(opp: Opportunity): boolean {
@@ -90,12 +101,12 @@ export function KpiReport() {
   // Revenue by deal (top 10 by value)
   const revenueByDeal = useMemo(() => {
     return disposition
-      .filter((d) => d.monetaryValue > 0)
-      .sort((a, b) => b.monetaryValue - a.monetaryValue)
+      .filter((d) => getDealRevenue(d) > 0)
+      .sort((a, b) => getDealRevenue(b) - getDealRevenue(a))
       .slice(0, 8)
       .map((d) => ({
         name: d.name.length > 25 ? d.name.slice(0, 25) + "..." : d.name,
-        value: d.monetaryValue,
+        value: getDealRevenue(d),
       }));
   }, [disposition]);
 

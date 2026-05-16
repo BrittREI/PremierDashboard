@@ -8,6 +8,7 @@ import {
   Home,
   LayoutDashboard,
   Phone,
+  Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { to: "/team", label: "Team Performance", icon: Users },
   { to: "/sources", label: "Lead Sources", icon: Target },
   { to: "/deals", label: "Deal Tracker", icon: FileText },
+  { to: "/weekly", label: "Weekly Report", icon: Calendar },
 ];
 
 export function Sidebar() {
