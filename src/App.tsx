@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthGate } from "@/components/AuthGate";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Overview } from "@/pages/Overview";
 import { CeoDashboard } from "@/pages/CeoDashboard";
@@ -22,22 +23,24 @@ const queryClient = new QueryClient({
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<DashboardLayout />}>
-            <Route index element={<Overview />} />
-            <Route path="ceo" element={<CeoDashboard />} />
-            <Route path="calls" element={<CallPerformance />} />
-            <Route path="kpi" element={<KpiReport />} />
-            <Route path="pipeline" element={<PipelineHealth />} />
-            <Route path="team" element={<TeamPerformance />} />
-            <Route path="sources" element={<LeadSources />} />
-            <Route path="deals" element={<DealTracker />} />
-            <Route path="weekly" element={<WeeklyReport />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <AuthGate>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<DashboardLayout />}>
+              <Route index element={<Overview />} />
+              <Route path="ceo" element={<CeoDashboard />} />
+              <Route path="calls" element={<CallPerformance />} />
+              <Route path="kpi" element={<KpiReport />} />
+              <Route path="pipeline" element={<PipelineHealth />} />
+              <Route path="team" element={<TeamPerformance />} />
+              <Route path="sources" element={<LeadSources />} />
+              <Route path="deals" element={<DealTracker />} />
+              <Route path="weekly" element={<WeeklyReport />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </AuthGate>
   );
 }
