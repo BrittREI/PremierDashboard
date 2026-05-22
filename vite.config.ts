@@ -10,17 +10,5 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  server: {
-    proxy: {
-      "/ghl": {
-        target: "https://services.leadconnectorhq.com",
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/ghl/, ""),
-        headers: {
-          Authorization: `Bearer ${process.env.VITE_GHL_API_KEY}`,
-          Version: "2021-07-28",
-        },
-      },
-    },
-  },
+  // No dev proxy needed — all GHL calls go through /api/ghl/* (Vercel serverless proxy)
 });

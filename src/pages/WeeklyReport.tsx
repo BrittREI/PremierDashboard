@@ -206,6 +206,41 @@ export function WeeklyReport() {
       .sort((a, b) => b.count - a.count);
   }, [newLeadMgmt, newAcquisitions]);
 
+  // --- New lead status & outcome breakdown ---
+  const newLeadStatusBreakdown = useMemo(() => {
+    const allNew = [...newLeadMgmt, ...newAcquisitions, ...newDisposition];
+    const statusCounts = { open: 0, won: 0, lost: 0, abandoned: 0 };
+    const stageGroups = new Map<string, { count: number; status: string }>();
+
+    for (const opp of allNew) {
+      statusCounts[opp.status] = (statusCounts[opp.status] ?? 0) + 1;
+      const stageName = stageMap[opp.pipelineStageId] ?? "Unknown";
+      const key = `${stageName}__${opp.status}`;
+      const existing = stageGroups.get(key) ?? { count: 0, status: opp.status };
+      existing.count++;
+      stageGroups.set(key, existing);
+    }
+
+    const byStage = Array.from(stageGroups.entries())
+      .map(([key, { count, status }]) => ({
+        stageName: key.split("__")[0],
+        status,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    return { statusCounts, byStage, total: allNew.length };
+  }, [newLeadMgmt, newAcquisitions, newDisposition, stageMap]);
+
+  // --- Per-lead detail for the new leads table ---
+  const newLeadsDetailed = useMemo(() => {
+    return [...newLeadMgmt, ...newAcquisitions, ...newDisposition]
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+  }, [newLeadMgmt, newAcquisitions, newDisposition]);
+
   const weekLabel = `${formatDate(weekStart)} – ${formatDate(getWeekEnd())}`;
 
   if (oppsLoading || pipelinesQuery.isLoading) {
@@ -314,6 +349,90 @@ export function WeeklyReport() {
           )}
         </div>
       </div>
+
+      {/* New Lead Status & Outcomes */}
+      {newLeadStatusBreakdown.total > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              New Lead Statuses &amp; Outcomes (Last 7 Days) — {newLeadStatusBreakdown.total} leads
+            </h3>
+            <div className="flex gap-3">
+              <StatusPill label="Open" count={newLeadStatusBreakdown.statusCounts.open} color="blue" />
+              <StatusPill label="Won" count={newLeadStatusBreakdown.statusCounts.won} color="green" />
+              <StatusPill label="Lost" count={newLeadStatusBreakdown.statusCounts.lost} color="red" />
+              <StatusPill label="Abandoned" count={newLeadStatusBreakdown.statusCounts.abandoned} color="slate" />
+            </div>
+          </div>
+
+          {/* Stage × status grid */}
+          <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {newLeadStatusBreakdown.byStage.map(({ stageName, status, count }) => (
+              <div
+                key={`${stageName}-${status}`}
+                className="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3"
+              >
+                <div className="flex items-center gap-2">
+                  <StatusDot status={status} />
+                  <span className="text-sm font-medium text-slate-700">{stageName}</span>
+                </div>
+                <span className="text-sm font-bold text-slate-900">{count}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Detailed new leads table */}
+          <div className="border-t border-slate-100 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50">
+                <tr className="text-slate-500 text-left">
+                  <th className="px-5 py-3 font-medium">Lead</th>
+                  <th className="px-5 py-3 font-medium">Pipeline</th>
+                  <th className="px-5 py-3 font-medium">Current Stage</th>
+                  <th className="px-5 py-3 font-medium">Status</th>
+                  <th className="px-5 py-3 font-medium">Source</th>
+                  <th className="px-5 py-3 font-medium">Assigned To</th>
+                  <th className="px-5 py-3 font-medium">Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {newLeadsDetailed.map((opp) => (
+                  <tr
+                    key={opp.id}
+                    className="border-t border-slate-100 hover:bg-slate-50"
+                  >
+                    <td className="px-5 py-3 font-medium text-slate-900 max-w-[200px] truncate">
+                      {opp.name || opp.contact?.name || "—"}
+                    </td>
+                    <td className="px-5 py-3 text-slate-600">
+                      {getPipelineLabel(opp.pipelineId)}
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                        {stageMap[opp.pipelineStageId] ?? "Unknown"}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3">
+                      <StatusBadge status={opp.status} />
+                    </td>
+                    <td className="px-5 py-3">
+                      <ChannelBadge channel={getLeadChannel(opp)} />
+                    </td>
+                    <td className="px-5 py-3 text-slate-600">
+                      {opp.assignedTo
+                        ? USERS[opp.assignedTo] ?? "Unknown"
+                        : "—"}
+                    </td>
+                    <td className="px-5 py-3 text-slate-500">
+                      {formatDate(opp.createdAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Pipeline Snapshots */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -459,66 +578,6 @@ export function WeeklyReport() {
         </div>
       )}
 
-      {/* New Leads Table */}
-      {newLeadMgmt.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              New Leads Entered Pipeline (Last 7 Days) —{" "}
-              {newLeadMgmt.length + newAcquisitions.length} total
-            </h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr className="text-slate-500 text-left">
-                  <th className="px-5 py-3 font-medium">Lead</th>
-                  <th className="px-5 py-3 font-medium">Pipeline</th>
-                  <th className="px-5 py-3 font-medium">Stage</th>
-                  <th className="px-5 py-3 font-medium">Source</th>
-                  <th className="px-5 py-3 font-medium">Assigned To</th>
-                  <th className="px-5 py-3 font-medium">Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...newLeadMgmt, ...newAcquisitions]
-                  .sort(
-                    (a, b) =>
-                      new Date(b.createdAt).getTime() -
-                      new Date(a.createdAt).getTime()
-                  )
-                  .map((opp) => (
-                    <tr
-                      key={opp.id}
-                      className="border-t border-slate-100 hover:bg-slate-50"
-                    >
-                      <td className="px-5 py-3 font-medium text-slate-900 max-w-[220px] truncate">
-                        {opp.name || opp.contact?.name || "—"}
-                      </td>
-                      <td className="px-5 py-3 text-slate-600">
-                        {getPipelineLabel(opp.pipelineId)}
-                      </td>
-                      <td className="px-5 py-3 text-slate-600">
-                        {stageMap[opp.pipelineStageId] ?? "—"}
-                      </td>
-                      <td className="px-5 py-3">
-                        <ChannelBadge channel={getLeadChannel(opp)} />
-                      </td>
-                      <td className="px-5 py-3 text-slate-600">
-                        {opp.assignedTo
-                          ? USERS[opp.assignedTo] ?? "Unknown"
-                          : "—"}
-                      </td>
-                      <td className="px-5 py-3 text-slate-500">
-                        {formatDate(opp.createdAt)}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -572,6 +631,47 @@ function ChannelBadge({ channel }: { channel: string }) {
       className={`px-2 py-1 rounded-full text-xs font-medium ${colors[channel] ?? colors.Other}`}
     >
       {channel}
+    </span>
+  );
+}
+
+function StatusPill({ label, count, color }: { label: string; count: number; color: string }) {
+  if (count === 0) return null;
+  const colorMap: Record<string, string> = {
+    blue: "bg-blue-100 text-blue-700",
+    green: "bg-emerald-100 text-emerald-700",
+    red: "bg-red-100 text-red-700",
+    slate: "bg-slate-100 text-slate-600",
+  };
+  return (
+    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${colorMap[color] ?? colorMap.slate}`}>
+      {count} {label}
+    </span>
+  );
+}
+
+function StatusDot({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    open: "bg-blue-500",
+    won: "bg-emerald-500",
+    lost: "bg-red-500",
+    abandoned: "bg-slate-400",
+  };
+  return (
+    <span className={`inline-block w-2 h-2 rounded-full ${colors[status] ?? colors.open}`} />
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    open: "bg-blue-100 text-blue-700",
+    won: "bg-emerald-100 text-emerald-700",
+    lost: "bg-red-100 text-red-700",
+    abandoned: "bg-slate-100 text-slate-600",
+  };
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${styles[status] ?? styles.open}`}>
+      {status}
     </span>
   );
 }

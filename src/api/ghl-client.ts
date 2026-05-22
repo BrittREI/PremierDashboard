@@ -1,8 +1,9 @@
 /**
  * GHL API client.
  *
- * - Dev: calls GHL directly using VITE_ env vars (for fast iteration)
- * - Production: calls /api/ghl/* proxy (token stays server-side)
+ * All requests go through the Vercel serverless proxy at /api/ghl/*
+ * which injects the GHL token and locationId server-side.
+ * No secrets are ever exposed to the browser.
  */
 
 import type {
@@ -14,36 +15,13 @@ import type {
   CallStats,
 } from "@/types/ghl";
 
-const isDev = import.meta.env.DEV;
-
-// Dev-only: direct GHL calls
-const GHL_BASE = "https://services.leadconnectorhq.com";
-const TOKEN = import.meta.env.VITE_GHL_API_KEY ?? "";
-const LOCATION_ID = import.meta.env.VITE_GHL_LOCATION_ID ?? "";
-
-function devHeaders(): Record<string, string> {
-  return {
-    Authorization: `Bearer ${TOKEN}`,
-    Version: "2021-07-28",
-    Accept: "application/json",
-    "Content-Type": "application/json",
-  };
-}
-
 async function request<T>(
   method: string,
   path: string,
   opts: { query?: Record<string, unknown>; body?: unknown } = {}
 ): Promise<T> {
-  let url: URL;
-
-  if (isDev) {
-    // Direct to GHL in development
-    url = new URL(GHL_BASE + path);
-  } else {
-    // Through Vercel proxy in production
-    url = new URL(`/api/ghl${path}`, window.location.origin);
-  }
+  // Always use the Vercel proxy — token stays server-side
+  const url = new URL(`/api/ghl${path}`, window.location.origin);
 
   if (opts.query) {
     for (const [k, v] of Object.entries(opts.query)) {
@@ -54,9 +32,7 @@ async function request<T>(
 
   const fetchOpts: RequestInit = {
     method,
-    headers: isDev
-      ? devHeaders()
-      : { Accept: "application/json", "Content-Type": "application/json" },
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   };
 
@@ -73,10 +49,11 @@ async function request<T>(
 // ─── Endpoints ───────────────────────────────────────────
 
 export async function listPipelines(): Promise<Pipeline[]> {
+  // locationId injected server-side by the proxy
   const data = await request<{ pipelines: Pipeline[] }>(
     "GET",
     "/opportunities/pipelines",
-    { query: { locationId: LOCATION_ID } }
+    { query: { locationId: "" } }
   );
   return data.pipelines;
 }
@@ -91,7 +68,7 @@ export async function searchOpportunities(opts: {
 }): Promise<OpportunitySearchResult> {
   return request<OpportunitySearchResult>("GET", "/opportunities/search", {
     query: {
-      location_id: LOCATION_ID,
+      location_id: "",  // injected server-side by the proxy
       pipeline_id: opts.pipelineId,
       pipeline_stage_id: opts.stageId,
       assigned_to: opts.assignedTo,
@@ -149,7 +126,7 @@ export async function searchContacts(opts: {
 
   return request<ContactSearchResult>("POST", "/contacts/search", {
     body: {
-      locationId: LOCATION_ID,
+      locationId: "",  // injected server-side by the proxy
       pageLimit: opts.limit ?? 100,
       query: opts.query,
       filters: filters.length ? filters : undefined,
@@ -160,17 +137,14 @@ export async function searchContacts(opts: {
 
 export async function listUsers(): Promise<GhlUser[]> {
   const data = await request<{ users: GhlUser[] }>("GET", "/users/", {
-    query: { locationId: LOCATION_ID },
+    query: { locationId: "" },  // injected server-side by the proxy
   });
   return data.users;
 }
 
 /** Fetch call/conversation analytics from dedicated endpoint */
 export async function fetchCallStats(): Promise<CallStats> {
-  const url = isDev
-    ? `/api/call-stats`
-    : `/api/call-stats`;
-  const res = await fetch(url, {
+  const res = await fetch(`/api/call-stats`, {
     headers: { Accept: "application/json" },
   });
   if (!res.ok) {
