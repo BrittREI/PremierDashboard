@@ -13,7 +13,7 @@ async function hashPassword(password: string): Promise<string> {
 
 // Pre-computed SHA-256 hash — password itself is not in the bundle
 const VALID_HASH =
-  "1b837eb018527ac8c7076e74342b54ace43b752f8567faa2d9eab26d408f843e";
+  "0cc65994eca330409fb803260b200dd601214b3eb26a39c9162ae3ac59cd0995";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [authed, setAuthed] = useState(
