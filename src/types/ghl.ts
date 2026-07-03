@@ -213,6 +213,10 @@ export const CUSTOM_FIELDS = {
   purchasePrice: "yy1zQAy8Exipwv8esZbm",
   buyerPrice: "Y66sQcMfpiuozAYgotEJ",
   assignmentFee: "Jxw7EXRUuNVkplvUOQbg",
+  contractDate: "Ze44rart2oaeTDpTSNeZ",
+  closeDate: "kJZ18QFQsl8Rcc75uPe6",
+  dueDiligenceDate: "z7WUtTEMe7IWZTgR2n2d",
+  propertyAddress: "tTaOnUWLSwnH1h69w4OS",
 } as const;
 
 // Contact-level custom field IDs for lead source tracking
@@ -286,6 +290,24 @@ export function getBuyerPrice(opp: Opportunity): number {
     if (val && !isNaN(val) && val > 0) return val;
   }
   return 0;
+}
+
+/** Extract contract date from custom fields (epoch ms → Date) */
+export function getContractDate(opp: Opportunity): Date | null {
+  const field = opp.customFields?.find(
+    (f) => f.id === CUSTOM_FIELDS.contractDate
+  );
+  if (field?.fieldValueDate) return new Date(field.fieldValueDate);
+  return null;
+}
+
+/** Extract close date from custom fields (epoch ms → Date) */
+export function getCloseDate(opp: Opportunity): Date | null {
+  const field = opp.customFields?.find(
+    (f) => f.id === CUSTOM_FIELDS.closeDate
+  );
+  if (field?.fieldValueDate) return new Date(field.fieldValueDate);
+  return null;
 }
 
 /** Build a stage ID → stage name lookup from pipeline data */

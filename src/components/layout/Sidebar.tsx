@@ -1,27 +1,10 @@
 import { NavLink } from "react-router-dom";
-import {
-  BarChart3,
-  Activity,
-  Users,
-  Target,
-  FileText,
-  Home,
-  LayoutDashboard,
-  Phone,
-  Calendar,
-} from "lucide-react";
+import { Users, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { to: "/", label: "Overview", icon: Home },
-  { to: "/ceo", label: "CEO Dashboard", icon: LayoutDashboard },
-  { to: "/calls", label: "Call Performance", icon: Phone },
-  { to: "/kpi", label: "KPI Report", icon: BarChart3 },
-  { to: "/pipeline", label: "Pipeline Health", icon: Activity },
-  { to: "/team", label: "Team Performance", icon: Users },
-  { to: "/sources", label: "Lead Sources", icon: Target },
-  { to: "/deals", label: "Deal Tracker", icon: FileText },
-  { to: "/weekly", label: "Weekly Report", icon: Calendar },
+  { to: "/", label: "Team Dashboard", icon: Users },
+  { to: "/ceo", label: "CEO Dashboard", icon: Lock },
 ];
 
 export function Sidebar() {
@@ -29,7 +12,7 @@ export function Sidebar() {
     <aside className="w-64 bg-slate-900 text-white flex flex-col min-h-screen">
       <div className="p-6 border-b border-slate-700">
         <h1 className="text-lg font-bold tracking-tight">Premier Path</h1>
-        <p className="text-xs text-slate-400 mt-1">GHL Dashboards</p>
+        <p className="text-xs text-slate-400 mt-1">KPI Dashboards</p>
       </div>
       <nav className="flex-1 p-4 space-y-1">
         {NAV_ITEMS.map(({ to, label, icon: Icon }) => (

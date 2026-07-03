@@ -1,380 +1,195 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   DollarSign,
-  TrendingUp,
-  Trophy,
-  XCircle,
+  TrendingDown,
+  Megaphone,
+  Users,
   Target,
-  BarChart3,
+  XCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { StackedBarChart } from "@/components/charts/StackedBarChart";
-import {
-  useAllOpportunities,
-  useContacts,
-  usePipelines,
-} from "@/hooks/useGhlData";
+import { useAllOpportunities, usePipelines } from "@/hooks/useGhlData";
 import { formatCurrency, formatPercent } from "@/lib/utils";
-import type { Opportunity } from "@/types/ghl";
 import {
-  USERS,
-  DEAL_PIPELINE_IDS,
-  getDealRevenue,
-  getPurchasePrice,
-  getBuyerPrice,
   buildStageMap,
+  getDealRevenue,
+  USERS as USER_MAP,
+  type Opportunity,
 } from "@/types/ghl";
 
-type TimePeriod = "all" | "2024" | "2025" | "2026";
-
-// Stage name patterns for matching across pipelines (disposition + archives)
 const CLOSED_WON_PATTERN = /closed\s*won/i;
 const CLOSED_LOST_PATTERN = /closed\s*lost/i;
-const DELAYED_PATTERN = /delayed/i;
+const UNDER_CONTRACT_PATTERN = /under\s*contract/i;
 
-function getYearQuarter(dateStr: string) {
+function getMonthRange(offset: number) {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + offset + 1, 1);
+  return { start, end };
+}
+
+function formatMonthLabel(offset: number): string {
+  const { start } = getMonthRange(offset);
+  return start.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+function storageKey(monthOffset: number, field: string): string {
+  const { start } = getMonthRange(monthOffset);
+  const key = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}`;
+  return `ppp-ceo-${key}-${field}`;
+}
+
+function isInMonth(dateStr: string, start: Date, end: Date): boolean {
   const d = new Date(dateStr);
-  const m = d.getMonth();
-  return {
-    year: d.getFullYear(),
-    quarter: m < 3 ? 1 : m < 6 ? 2 : m < 9 ? 3 : 4,
-  };
+  return d >= start && d < end;
 }
 
-/** Check if an opportunity is in a "Closed Won" stage (works across all deal pipelines) */
-function isClosedWon(opp: Opportunity, stageMap: Record<string, string>) {
-  const name = stageMap[opp.pipelineStageId] ?? "";
-  return CLOSED_WON_PATTERN.test(name);
-}
+function useCeoInput(monthOffset: number, field: string) {
+  const key = storageKey(monthOffset, field);
+  const [value, setValueState] = useState(() => {
+    const stored = localStorage.getItem(key);
+    return stored ? parseFloat(stored) : 0;
+  });
 
-/** Check if an opportunity is in a "Closed Lost" stage */
-function isClosedLost(opp: Opportunity, stageMap: Record<string, string>) {
-  const name = stageMap[opp.pipelineStageId] ?? "";
-  return CLOSED_LOST_PATTERN.test(name) || opp.status === "lost";
-}
-
-/** Check if a deal is active (not won, lost, or delayed) */
-function isActive(opp: Opportunity, stageMap: Record<string, string>) {
-  const name = stageMap[opp.pipelineStageId] ?? "";
-  return (
-    !isClosedWon(opp, stageMap) &&
-    !isClosedLost(opp, stageMap) &&
-    !DELAYED_PATTERN.test(name) &&
-    opp.status === "open"
+  const setValue = useCallback(
+    (v: number) => {
+      setValueState(v);
+      localStorage.setItem(key, String(v));
+    },
+    [key]
   );
-}
 
-interface QuarterData {
-  won: Opportunity[];
-  lost: Opportunity[];
+  return [value, setValue] as const;
 }
-
-interface YearData {
-  Q1: QuarterData;
-  Q2: QuarterData;
-  Q3: QuarterData;
-  Q4: QuarterData;
-}
-
-function emptyYear(): YearData {
-  return {
-    Q1: { won: [], lost: [] },
-    Q2: { won: [], lost: [] },
-    Q3: { won: [], lost: [] },
-    Q4: { won: [], lost: [] },
-  };
-}
-
-const QUARTER_LABELS: Record<string, string> = {
-  Q1: "Q1 (Jan–Mar)",
-  Q2: "Q2 (Apr–Jun)",
-  Q3: "Q3 (Jul–Sep)",
-  Q4: "Q4 (Oct–Dec)",
-};
 
 export function CeoDashboard() {
-  const [period, setPeriod] = useState<TimePeriod>("all");
-  const [stageFilter, setStageFilter] = useState("All");
-  const { allDeals, leadManagement, acquisitions, all, isLoading } =
+  const [monthOffset, setMonthOffset] = useState(0);
+  const { leadManagement, acquisitions, allDeals, isLoading } =
     useAllOpportunities();
   const pipelinesQuery = usePipelines();
 
-  // Build dynamic stage name lookup from API pipeline data
   const stageMap = useMemo(
     () => buildStageMap(pipelinesQuery.data ?? []),
     [pipelinesQuery.data]
   );
 
-  const contacts2024 = useContacts({
-    dateAddedAfter: new Date("2024-01-01").getTime(),
-    dateAddedBefore: new Date("2025-01-01").getTime(),
-    limit: 1,
-  });
-  const contacts2025 = useContacts({
-    dateAddedAfter: new Date("2025-01-01").getTime(),
-    dateAddedBefore: new Date("2026-01-01").getTime(),
-    limit: 1,
-  });
-  const contacts2026 = useContacts({
-    dateAddedAfter: new Date("2026-01-01").getTime(),
-    limit: 1,
-  });
-  const contactsAll = useContacts({ limit: 1 });
+  const { start: monthStart, end: monthEnd } = getMonthRange(monthOffset);
 
-  // Process deals into year/quarter structure (disposition + archives)
-  const { won, lost, active, byYear } = useMemo(() => {
-    const wonDeals = allDeals.filter((d) => isClosedWon(d, stageMap));
-    const lostDeals = allDeals.filter((d) => isClosedLost(d, stageMap));
-    const activeDeals = allDeals.filter((d) => isActive(d, stageMap));
-
-    const yearMap: Record<number, YearData> = {};
-
-    const addTo = (
-      arr: Opportunity[],
-      type: "won" | "lost",
-      dateField: "lastStatusChangeAt" | "updatedAt"
-    ) => {
-      for (const d of arr) {
-        const date = d[dateField] || d.createdAt;
-        if (!date) continue;
-        const { year, quarter } = getYearQuarter(date);
-        if (!yearMap[year]) yearMap[year] = emptyYear();
-        const qKey = `Q${quarter}` as keyof YearData;
-        yearMap[year][qKey][type].push(d);
-      }
-    };
-
-    addTo(wonDeals, "won", "lastStatusChangeAt");
-    addTo(lostDeals, "lost", "lastStatusChangeAt");
-
-    return { won: wonDeals, lost: lostDeals, active: activeDeals, byYear: yearMap };
-  }, [allDeals, stageMap]);
-
-  // Gross lead counts from contacts
-  const grossLeads: Record<string, number> = useMemo(
-    () => ({
-      all: contactsAll.data?.total ?? 0,
-      "2024": contacts2024.data?.total ?? 0,
-      "2025": contacts2025.data?.total ?? 0,
-      "2026": contacts2026.data?.total ?? 0,
-    }),
-    [contactsAll.data, contacts2024.data, contacts2025.data, contacts2026.data]
+  const [adSpend, setAdSpend] = useCeoInput(monthOffset, "adSpend");
+  const [teamPayment, setTeamPayment] = useCeoInput(
+    monthOffset,
+    "teamPayment"
   );
 
-  // Filter for current period
-  const periodWon = useMemo(() => {
-    if (period === "all") return won;
-    const yr = parseInt(period);
-    return won.filter((d) => {
-      const date = d.lastStatusChangeAt || d.createdAt;
-      return date && getYearQuarter(date).year === yr;
-    });
-  }, [won, period]);
-
-  const periodLost = useMemo(() => {
-    if (period === "all") return lost;
-    const yr = parseInt(period);
-    return lost.filter((d) => {
-      const date = d.lastStatusChangeAt || d.createdAt;
-      return date && getYearQuarter(date).year === yr;
-    });
-  }, [lost, period]);
-
-  // KPI calculations for current period
   const kpis = useMemo(() => {
-    const totalRev = periodWon.reduce((s, d) => s + getDealRevenue(d), 0);
-    const avgFee = periodWon.length ? totalRev / periodWon.length : 0;
-    const total = periodWon.length + periodLost.length;
-    const closeRate = total > 0 ? (periodWon.length / total) * 100 : 0;
+    // Leads for the month (Lead Management created this month)
+    const leadsThisMonth = leadManagement.filter((o) =>
+      isInMonth(o.createdAt, monthStart, monthEnd)
+    );
 
-    // Funnel metrics
-    const gross = grossLeads[period] || 0;
-    const contracts = period === "all" ? allDeals.length : allDeals.filter((d) => {
-      const yr = parseInt(period);
-      return d.createdAt && getYearQuarter(d.createdAt).year === yr;
-    }).length;
+    // Closed Won this month (across all deal pipelines)
+    const closedWonThisMonth = allDeals.filter((o) => {
+      const name = stageMap[o.pipelineStageId] ?? "";
+      const isWon = CLOSED_WON_PATTERN.test(name) || o.status === "won";
+      if (!isWon) return false;
+      return isInMonth(
+        o.lastStatusChangeAt || o.lastStageChangeAt,
+        monthStart,
+        monthEnd
+      );
+    });
+    const grossRevenue = closedWonThisMonth.reduce(
+      (sum, o) => sum + getDealRevenue(o),
+      0
+    );
 
-    // Unique contacts associated with deals as "net leads"
-    const netLeadIds = new Set<string>();
-    const periodDeals =
-      period === "all"
-        ? allDeals
-        : allDeals.filter((d) => {
-            const yr = parseInt(period);
-            return d.createdAt && getYearQuarter(d.createdAt).year === yr;
-          });
-    for (const d of periodDeals) {
-      if (d.contactId) netLeadIds.add(d.contactId);
-    }
+    // Net revenue
+    const netRevenue = grossRevenue - adSpend - teamPayment;
+
+    // Cost per lead
+    const costPerLead =
+      leadsThisMonth.length > 0 ? adSpend / leadsThisMonth.length : 0;
+
+    // Contract to close fallout: deals that were Under Contract but ended up Closed Lost this month
+    const contractsUnderContract = acquisitions.filter((o) => {
+      const name = stageMap[o.pipelineStageId] ?? "";
+      return (
+        UNDER_CONTRACT_PATTERN.test(name) ||
+        o.status === "won" ||
+        CLOSED_LOST_PATTERN.test(name)
+      );
+    });
+    const falloutThisMonth = allDeals.filter((o) => {
+      const name = stageMap[o.pipelineStageId] ?? "";
+      const isLost = CLOSED_LOST_PATTERN.test(name) || o.status === "lost";
+      if (!isLost) return false;
+      return isInMonth(
+        o.lastStatusChangeAt || o.lastStageChangeAt,
+        monthStart,
+        monthEnd
+      );
+    });
+    const totalContractDecisions =
+      closedWonThisMonth.length + falloutThisMonth.length;
+    const falloutRate =
+      totalContractDecisions > 0
+        ? (falloutThisMonth.length / totalContractDecisions) * 100
+        : 0;
 
     return {
-      totalRevenue: totalRev,
-      avgFee,
-      dealsWon: periodWon.length,
-      dealsLost: periodLost.length,
-      closeRate,
-      activePipeline: active.length,
-      grossLeads: gross,
-      netLeads: netLeadIds.size,
-      contracts,
+      leads: leadsThisMonth.length,
+      grossRevenue,
+      netRevenue,
+      costPerLead,
+      closedWon: closedWonThisMonth.length,
+      fallout: falloutThisMonth.length,
+      falloutRate,
+      closedWonDeals: closedWonThisMonth,
+      falloutDeals: falloutThisMonth,
     };
-  }, [periodWon, periodLost, grossLeads, period, allDeals, active]);
+  }, [
+    leadManagement,
+    acquisitions,
+    allDeals,
+    stageMap,
+    monthStart,
+    monthEnd,
+    adSpend,
+    teamPayment,
+  ]);
 
-  // Annual comparison table data
-  const annualData = useMemo(() => {
-    const years = Object.keys(byYear)
-      .map(Number)
-      .sort();
-    let prevRev: number | null = null;
-
-    return years.map((yr) => {
-      const yd = byYear[yr];
-      const qs: (keyof YearData)[] = ["Q1", "Q2", "Q3", "Q4"];
-      const yw = qs.flatMap((q) => yd[q].won);
-      const yl = qs.flatMap((q) => yd[q].lost);
-      const rev = yw.reduce((s, d) => s + getDealRevenue(d), 0);
-      const avg = yw.length ? rev / yw.length : 0;
-      const total = yw.length + yl.length;
-      const rate = total > 0 ? (yw.length / total) * 100 : 0;
-      const vsPrior =
-        prevRev !== null && prevRev > 0
-          ? Math.round(((rev - prevRev) / prevRev) * 100)
-          : null;
-      prevRev = rev;
-
-      const isCurrentYear = yr === new Date().getFullYear();
-      return {
-        year: isCurrentYear ? `${yr} YTD` : String(yr),
-        won: yw.length,
-        lost: yl.length,
-        closeRate: rate,
-        revenue: rev,
-        avgFee: avg,
-        vsPrior,
-      };
-    });
-  }, [byYear]);
-
-  // Quarterly chart data
-  const quarterlyRevChart = useMemo(() => {
-    if (period === "all") {
-      // Show all quarters across years
-      const years = Object.keys(byYear)
-        .map(Number)
-        .sort();
-      const data: Array<{ label: string; revenue: number }> = [];
-      for (const yr of years) {
-        for (const q of ["Q1", "Q2", "Q3", "Q4"] as const) {
-          const qd = byYear[yr]?.[q];
-          if (!qd || (!qd.won.length && !qd.lost.length)) continue;
-          data.push({
-            label: `${yr} ${q}`,
-            revenue: qd.won.reduce((s, d) => s + getDealRevenue(d), 0),
-          });
-        }
-      }
-      return data;
+  // Monthly revenue trend (last 6 months)
+  const monthlyTrend = useMemo(() => {
+    const data: Array<{ label: string; Revenue: number; "Net Revenue": number }> = [];
+    for (let i = -5; i <= 0; i++) {
+      const adjOffset = monthOffset + i;
+      const { start, end } = getMonthRange(adjOffset);
+      const label = start.toLocaleDateString("en-US", {
+        month: "short",
+        year: "2-digit",
+      });
+      const monthWon = allDeals.filter((o) => {
+        const name = stageMap[o.pipelineStageId] ?? "";
+        const isWon = CLOSED_WON_PATTERN.test(name) || o.status === "won";
+        if (!isWon) return false;
+        return isInMonth(
+          o.lastStatusChangeAt || o.lastStageChangeAt,
+          start,
+          end
+        );
+      });
+      const rev = monthWon.reduce((s, o) => s + getDealRevenue(o), 0);
+      const spendKey = storageKey(adjOffset, "adSpend");
+      const payKey = storageKey(adjOffset, "teamPayment");
+      const spend = parseFloat(localStorage.getItem(spendKey) ?? "0");
+      const pay = parseFloat(localStorage.getItem(payKey) ?? "0");
+      data.push({ label, Revenue: rev, "Net Revenue": rev - spend - pay });
     }
-    const yr = parseInt(period);
-    const yd = byYear[yr];
-    if (!yd) return [];
-    return (["Q1", "Q2", "Q3", "Q4"] as const).map((q) => ({
-      label: q,
-      revenue: yd[q].won.reduce((s, d) => s + getDealRevenue(d), 0),
-    }));
-  }, [byYear, period]);
-
-  const quarterlyWonLostChart = useMemo(() => {
-    if (period === "all") {
-      const years = Object.keys(byYear)
-        .map(Number)
-        .sort();
-      const data: Array<{ label: string; Won: number; Lost: number }> = [];
-      for (const yr of years) {
-        for (const q of ["Q1", "Q2", "Q3", "Q4"] as const) {
-          const qd = byYear[yr]?.[q];
-          if (!qd || (!qd.won.length && !qd.lost.length)) continue;
-          data.push({
-            label: `${yr} ${q}`,
-            Won: qd.won.length,
-            Lost: qd.lost.length,
-          });
-        }
-      }
-      return data;
-    }
-    const yr = parseInt(period);
-    const yd = byYear[yr];
-    if (!yd) return [];
-    return (["Q1", "Q2", "Q3", "Q4"] as const).map((q) => ({
-      label: q,
-      Won: yd[q].won.length,
-      Lost: yd[q].lost.length,
-    }));
-  }, [byYear, period]);
-
-  // Per-year quarter breakdown table
-  const quarterTable = useMemo(() => {
-    if (period === "all") return null;
-    const yr = parseInt(period);
-    const yd = byYear[yr];
-    if (!yd) return [];
-    return (["Q1", "Q2", "Q3", "Q4"] as const)
-      .map((q) => {
-        const qd = yd[q];
-        const rev = qd.won.reduce((s, d) => s + getDealRevenue(d), 0);
-        const avg = qd.won.length ? rev / qd.won.length : 0;
-        const total = qd.won.length + qd.lost.length;
-        const rate = total > 0 ? (qd.won.length / total) * 100 : 0;
-        const best = [...qd.won].sort(
-          (a, b) => getDealRevenue(b) - getDealRevenue(a)
-        )[0];
-        return {
-          quarter: QUARTER_LABELS[q],
-          won: qd.won.length,
-          lost: qd.lost.length,
-          closeRate: rate,
-          revenue: rev,
-          avgFee: avg,
-          bestDeal: best
-            ? `${best.name.slice(0, 28)} (${formatCurrency(getDealRevenue(best))})`
-            : "—",
-          hasData: qd.won.length > 0 || qd.lost.length > 0,
-        };
-      })
-      .filter((r) => r.hasData);
-  }, [byYear, period]);
-
-  // Active pipeline stages for filter pills
-  const stageNames = useMemo(() => {
-    return [...new Set(active.map((d) => {
-      // Look up stage name from pipeline data
-      return d.pipelineStageId;
-    }))];
-  }, [active]);
-
-  const filteredActive = useMemo(() => {
-    if (stageFilter === "All") return active;
-    return active.filter((d) => d.pipelineStageId === stageFilter);
-  }, [active, stageFilter]);
-
-  const getStageName = (id: string) => stageMap[id] || id.slice(0, 8);
-
-  // All closed-won deals for the table
-  const closedWonDeals = useMemo(() => {
-    return [...periodWon].sort(
-      (a, b) =>
-        new Date(a.lastStatusChangeAt || a.createdAt).getTime() -
-        new Date(b.lastStatusChangeAt || b.createdAt).getTime()
-    );
-  }, [periodWon]);
-
-  const periodLabel =
-    period === "all"
-      ? "All Time"
-      : period === "2026"
-        ? "2026 YTD"
-        : period;
+    return data;
+  }, [allDeals, stageMap, monthOffset]);
 
   if (isLoading) {
     return (
@@ -386,373 +201,200 @@ export function CeoDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between flex-wrap gap-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            CEO Dashboard
-          </h1>
+          <h1 className="text-2xl font-bold text-slate-900">CEO Dashboard</h1>
           <p className="text-slate-500 mt-1">
-            Year &amp; quarter breakdown · {all.length} total deals
+            Financial KPIs — {formatMonthLabel(monthOffset)}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setMonthOffset((o) => o - 1)}
+            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setMonthOffset(0)}
+            className="px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+          >
+            This Month
+          </button>
+          <button
+            onClick={() => setMonthOffset((o) => Math.min(o + 1, 0))}
+            disabled={monthOffset >= 0}
+            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-30"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Manual inputs */}
+      <div className="bg-slate-50 rounded-xl border border-slate-200 p-5">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+          Monthly Expenses (editable)
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Ad / Marketing Spend
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+                $
+              </span>
+              <input
+                type="number"
+                value={adSpend || ""}
+                onChange={(e) => setAdSpend(parseFloat(e.target.value) || 0)}
+                placeholder="0"
+                className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Payment to Team
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+                $
+              </span>
+              <input
+                type="number"
+                value={teamPayment || ""}
+                onChange={(e) => setTeamPayment(parseFloat(e.target.value) || 0)}
+                placeholder="0"
+                className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bold KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard
+          title="Gross Revenue"
+          value={formatCurrency(kpis.grossRevenue)}
+          subtitle={`${kpis.closedWon} deals closed`}
+          icon={<DollarSign className="w-5 h-5" />}
+          className="ring-2 ring-emerald-100"
+        />
+        <StatCard
+          title="Net Revenue"
+          value={formatCurrency(kpis.netRevenue)}
+          subtitle="after spend & team payment"
+          icon={<TrendingDown className="w-5 h-5" />}
+          className={`ring-2 ${kpis.netRevenue >= 0 ? "ring-emerald-100" : "ring-red-100"}`}
+        />
+        <StatCard
+          title="Ad Spend"
+          value={formatCurrency(adSpend)}
+          subtitle="marketing this month"
+          icon={<Megaphone className="w-5 h-5" />}
+          className="ring-2 ring-blue-100"
+        />
+      </div>
+
+      {/* Secondary KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <Users className="w-4 h-4 text-purple-500" />
+            <p className="text-xs font-medium text-slate-500">Team Payment</p>
+          </div>
+          <p className="text-xl font-bold text-slate-900">
+            {formatCurrency(teamPayment)}
+          </p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <Target className="w-4 h-4 text-blue-500" />
+            <p className="text-xs font-medium text-slate-500">Cost per Lead</p>
+          </div>
+          <p className="text-xl font-bold text-slate-900">
+            {kpis.leads > 0 && adSpend > 0
+              ? formatCurrency(kpis.costPerLead)
+              : "—"}
+          </p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {kpis.leads} leads this month
+          </p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <XCircle className="w-4 h-4 text-red-500" />
+            <p className="text-xs font-medium text-slate-500">
+              Fallout (Lost After Contract)
+            </p>
+          </div>
+          <p className="text-xl font-bold text-slate-900">{kpis.fallout}</p>
+          <p className="text-xs text-slate-400 mt-0.5">deals cancelled/lost</p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingDown className="w-4 h-4 text-amber-500" />
+            <p className="text-xs font-medium text-slate-500">Fallout Rate</p>
+          </div>
+          <p className="text-xl font-bold text-slate-900">
+            {kpis.fallout > 0 || kpis.closedWon > 0
+              ? formatPercent(kpis.falloutRate)
+              : "—"}
+          </p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {kpis.fallout} lost of {kpis.closedWon + kpis.fallout} decided
           </p>
         </div>
       </div>
 
-      {/* Time period tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {(
-          [
-            { id: "all", label: "All Time" },
-            { id: "2024", label: "2024" },
-            { id: "2025", label: "2025" },
-            { id: "2026", label: "2026 YTD" },
-          ] as const
-        ).map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setPeriod(tab.id)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
-              period === tab.id
-                ? "bg-slate-900 text-white border-transparent"
-                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Pipeline Funnel Metrics */}
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-5">
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
-          Pipeline Funnel Metrics — {periodLabel}
+      {/* Revenue trend chart */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">
+          6-Month Revenue Trend
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-white rounded-lg p-4 border border-slate-100">
-            <p className="text-xs text-slate-500 font-medium">
-              Net → Gross Lead Ratio
-            </p>
-            <p className="text-xl font-bold text-blue-600 mt-1">
-              {kpis.grossLeads > 0
-                ? formatPercent(
-                    (kpis.netLeads / kpis.grossLeads) * 100
-                  )
-                : "—"}
-            </p>
-            <p className="text-xs text-slate-400 mt-1">
-              {kpis.netLeads.toLocaleString()} net of{" "}
-              {kpis.grossLeads.toLocaleString()} gross
-            </p>
-          </div>
-          <div className="bg-white rounded-lg p-4 border border-slate-100">
-            <p className="text-xs text-slate-500 font-medium">
-              Contract → Net Lead Ratio
-            </p>
-            <p className="text-xl font-bold text-slate-900 mt-1">
-              {kpis.netLeads > 0
-                ? (kpis.contracts / kpis.netLeads).toFixed(2) + "x"
-                : "—"}
-            </p>
-            <p className="text-xs text-slate-400 mt-1">
-              {kpis.contracts} contracts from{" "}
-              {kpis.netLeads.toLocaleString()} net leads
-            </p>
-          </div>
-          <div className="bg-white rounded-lg p-4 border border-slate-100">
-            <p className="text-xs text-slate-500 font-medium">
-              Contract to Close Rate
-            </p>
-            <p className="text-xl font-bold text-emerald-600 mt-1">
-              {kpis.contracts > 0
-                ? formatPercent(
-                    (kpis.dealsWon / kpis.contracts) * 100
-                  )
-                : "—"}
-            </p>
-            <p className="text-xs text-slate-400 mt-1">
-              {kpis.dealsWon} closed of {kpis.contracts} contracts
-            </p>
-          </div>
-          <div className="bg-white rounded-lg p-4 border border-slate-100">
-            <p className="text-xs text-slate-500 font-medium">
-              Avg Revenue / Deal
-            </p>
-            <p className="text-xl font-bold text-amber-600 mt-1">
-              {kpis.dealsWon > 0 ? formatCurrency(kpis.avgFee) : "—"}
-            </p>
-            <p className="text-xs text-slate-400 mt-1">
-              across {kpis.dealsWon} closed won deals
-            </p>
-          </div>
-        </div>
-        <p className="text-[10px] text-slate-400 mt-3">
-          Gross Leads: {kpis.grossLeads.toLocaleString()} total contacts ·
-          Net Leads: {kpis.netLeads.toLocaleString()} contacts with deals ·
-          Contracts: {kpis.contracts} deals created ·
-          Closed Won: {kpis.dealsWon} deals
-        </p>
-      </div>
-
-      {/* KPI cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <StatCard
-          title="Total Revenue"
-          value={formatCurrency(kpis.totalRevenue)}
-          subtitle={`${kpis.dealsWon} deals closed`}
-          icon={<DollarSign className="w-5 h-5" />}
-        />
-        <StatCard
-          title="Avg Fee / Deal"
-          value={kpis.dealsWon > 0 ? formatCurrency(kpis.avgFee) : "—"}
-          subtitle={`${kpis.dealsWon} closings`}
-          icon={<TrendingUp className="w-5 h-5" />}
-        />
-        <StatCard
-          title="Deals Won"
-          value={kpis.dealsWon}
-          subtitle="closed won"
-          icon={<Trophy className="w-5 h-5" />}
-        />
-        <StatCard
-          title="Deals Lost"
-          value={kpis.dealsLost}
-          subtitle="closed lost"
-          icon={<XCircle className="w-5 h-5" />}
-        />
-        <StatCard
-          title="Close Rate"
-          value={formatPercent(kpis.closeRate)}
-          subtitle={`${kpis.dealsWon} of ${kpis.dealsWon + kpis.dealsLost}`}
-          icon={<Target className="w-5 h-5" />}
-        />
-        {period !== "all" && parseInt(period) === new Date().getFullYear() && (
-          <StatCard
-            title="Active Pipeline"
-            value={kpis.activePipeline}
-            subtitle="deals in progress"
-            icon={<BarChart3 className="w-5 h-5" />}
+        {monthlyTrend.some((d) => d.Revenue > 0) ? (
+          <StackedBarChart
+            data={monthlyTrend}
+            xKey="label"
+            bars={[
+              { key: "Revenue", color: "#10b981", label: "Gross Revenue" },
+              { key: "Net Revenue", color: "#3b82f6", label: "Net Revenue" },
+            ]}
+            isCurrency
+            height={250}
           />
+        ) : (
+          <p className="text-sm text-slate-400 py-8 text-center">
+            No revenue data for this period
+          </p>
         )}
       </div>
 
-      {/* Annual Comparison Table (show on All Time) */}
-      {period === "all" && annualData.length > 0 && (
+      {/* Fallout deals table */}
+      {kpis.falloutDeals.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-5 border-b border-slate-100">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Annual Comparison
+              Deals Lost / Cancelled — {formatMonthLabel(monthOffset)} (
+              {kpis.falloutDeals.length})
             </h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr className="text-slate-500 text-left">
-                  <th className="px-5 py-3 font-medium">Year</th>
-                  <th className="px-5 py-3 font-medium text-right">
-                    Deals Won
-                  </th>
-                  <th className="px-5 py-3 font-medium text-right">
-                    Deals Lost
-                  </th>
-                  <th className="px-5 py-3 font-medium text-right">
-                    Close Rate
-                  </th>
-                  <th className="px-5 py-3 font-medium text-right">Revenue</th>
-                  <th className="px-5 py-3 font-medium text-right">Avg Fee</th>
-                  <th className="px-5 py-3 font-medium text-right">
-                    vs Prior Year
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {annualData.map((row) => (
-                  <tr
-                    key={row.year}
-                    className="border-t border-slate-100 hover:bg-slate-50"
-                  >
-                    <td className="px-5 py-3 font-medium text-slate-900">
-                      {row.year}
-                    </td>
-                    <td className="px-5 py-3 text-right">{row.won}</td>
-                    <td className="px-5 py-3 text-right">{row.lost}</td>
-                    <td className="px-5 py-3 text-right">
-                      {formatPercent(row.closeRate)}
-                    </td>
-                    <td className="px-5 py-3 text-right font-medium">
-                      {formatCurrency(row.revenue)}
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      {formatCurrency(row.avgFee)}
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      {row.vsPrior === null ? (
-                        <span className="text-slate-400">—</span>
-                      ) : row.vsPrior >= 0 ? (
-                        <span className="text-emerald-600 font-medium">
-                          +{row.vsPrior}% ↑
-                        </span>
-                      ) : (
-                        <span className="text-red-500 font-medium">
-                          {row.vsPrior}% ↓
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Quarter breakdown table (show on per-year views) */}
-      {period !== "all" && quarterTable && quarterTable.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              {period} by Quarter
-            </h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr className="text-slate-500 text-left">
-                  <th className="px-5 py-3 font-medium">Quarter</th>
-                  <th className="px-5 py-3 font-medium text-right">Won</th>
-                  <th className="px-5 py-3 font-medium text-right">Lost</th>
-                  <th className="px-5 py-3 font-medium text-right">
-                    Close Rate
-                  </th>
-                  <th className="px-5 py-3 font-medium text-right">Revenue</th>
-                  <th className="px-5 py-3 font-medium text-right">Avg Fee</th>
-                  <th className="px-5 py-3 font-medium">Best Deal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {quarterTable.map((row) => (
-                  <tr
-                    key={row.quarter}
-                    className="border-t border-slate-100 hover:bg-slate-50"
-                  >
-                    <td className="px-5 py-3 font-medium text-slate-900">
-                      {row.quarter}
-                    </td>
-                    <td className="px-5 py-3 text-right">{row.won}</td>
-                    <td className="px-5 py-3 text-right">{row.lost}</td>
-                    <td className="px-5 py-3 text-right">
-                      {formatPercent(row.closeRate)}
-                    </td>
-                    <td className="px-5 py-3 text-right font-medium">
-                      {formatCurrency(row.revenue)}
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      {formatCurrency(row.avgFee)}
-                    </td>
-                    <td className="px-5 py-3 text-slate-600 max-w-[200px] truncate">
-                      {row.bestDeal}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">
-            Revenue by Quarter
-          </h3>
-          {quarterlyRevChart.length > 0 ? (
-            <StackedBarChart
-              data={quarterlyRevChart}
-              xKey="label"
-              bars={[{ key: "revenue", color: "#3b82f6", label: "Revenue" }]}
-              isCurrency
-              height={220}
-            />
-          ) : (
-            <p className="text-sm text-slate-400 py-8 text-center">
-              No revenue data for this period
-            </p>
-          )}
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">
-            Deals Won vs Lost by Quarter
-          </h3>
-          {quarterlyWonLostChart.length > 0 ? (
-            <StackedBarChart
-              data={quarterlyWonLostChart}
-              xKey="label"
-              bars={[
-                { key: "Won", color: "#10b981", label: "Won" },
-                { key: "Lost", color: "#ef4444", label: "Lost" },
-              ]}
-              height={220}
-            />
-          ) : (
-            <p className="text-sm text-slate-400 py-8 text-center">
-              No deal data for this period
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Active Pipeline with stage filter pills (show on current year) */}
-      {active.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Active Pipeline — {active.length} deals in progress
-            </h3>
-          </div>
-          <div className="px-5 pt-4 pb-2 flex gap-2 flex-wrap">
-            <button
-              onClick={() => setStageFilter("All")}
-              className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
-                stageFilter === "All"
-                  ? "bg-slate-900 text-white border-transparent"
-                  : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              All ({active.length})
-            </button>
-            {[...new Set(active.map((d) => d.pipelineStageId))].map(
-              (stageId) => {
-                const count = active.filter(
-                  (d) => d.pipelineStageId === stageId
-                ).length;
-                return (
-                  <button
-                    key={stageId}
-                    onClick={() => setStageFilter(stageId)}
-                    className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
-                      stageFilter === stageId
-                        ? "bg-slate-900 text-white border-transparent"
-                        : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    {getStageName(stageId)} ({count})
-                  </button>
-                );
-              }
-            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr className="text-slate-500 text-left">
                   <th className="px-5 py-3 font-medium">Property</th>
-                  <th className="px-5 py-3 font-medium">Stage</th>
+                  <th className="px-5 py-3 font-medium">Contact</th>
                   <th className="px-5 py-3 font-medium text-right">Value</th>
                   <th className="px-5 py-3 font-medium">Assigned To</th>
-                  <th className="px-5 py-3 font-medium">Contact</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredActive.map((d) => (
+                {kpis.falloutDeals.map((d) => (
                   <tr
                     key={d.id}
                     className="border-t border-slate-100 hover:bg-slate-50"
@@ -761,85 +403,20 @@ export function CeoDashboard() {
                       {d.name || "—"}
                     </td>
                     <td className="px-5 py-3 text-slate-600">
-                      {getStageName(d.pipelineStageId)}
+                      {d.contact?.name || "—"}
                     </td>
-                    <td className="px-5 py-3 text-right font-medium">
+                    <td className="px-5 py-3 text-right font-medium text-red-500">
                       {getDealRevenue(d) > 0
                         ? formatCurrency(getDealRevenue(d))
                         : "—"}
                     </td>
                     <td className="px-5 py-3 text-slate-600">
                       {d.assignedTo
-                        ? USERS[d.assignedTo] ?? "Unknown"
+                        ? USER_MAP[d.assignedTo] ?? "Unknown"
                         : "—"}
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {d.contact?.name || "—"}
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* All Closed-Won Deals table */}
-      {closedWonDeals.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              {periodLabel} — All Closed-Won Deals ({closedWonDeals.length})
-            </h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr className="text-slate-500 text-left">
-                  <th className="px-5 py-3 font-medium">Property</th>
-                  {period === "all" && (
-                    <th className="px-5 py-3 font-medium">Quarter</th>
-                  )}
-                  <th className="px-5 py-3 font-medium text-right">Fee</th>
-                  <th className="px-5 py-3 font-medium">Assigned To</th>
-                  <th className="px-5 py-3 font-medium">Contact</th>
-                </tr>
-              </thead>
-              <tbody>
-                {closedWonDeals.map((d) => {
-                  const date = d.lastStatusChangeAt || d.createdAt;
-                  const { year, quarter } = date
-                    ? getYearQuarter(date)
-                    : { year: 0, quarter: 0 };
-                  return (
-                    <tr
-                      key={d.id}
-                      className="border-t border-slate-100 hover:bg-slate-50"
-                    >
-                      <td className="px-5 py-3 font-medium text-slate-900 max-w-[250px] truncate">
-                        {d.name || "—"}
-                      </td>
-                      {period === "all" && (
-                        <td className="px-5 py-3 text-slate-600">
-                          {year} Q{quarter}
-                        </td>
-                      )}
-                      <td className="px-5 py-3 text-right font-medium text-emerald-600">
-                        {getDealRevenue(d) > 0
-                          ? formatCurrency(getDealRevenue(d))
-                          : "—"}
-                      </td>
-                      <td className="px-5 py-3 text-slate-600">
-                        {d.assignedTo
-                          ? USERS[d.assignedTo] ?? "Unknown"
-                          : "—"}
-                      </td>
-                      <td className="px-5 py-3 text-slate-600">
-                        {d.contact?.name || "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
               </tbody>
             </table>
           </div>
